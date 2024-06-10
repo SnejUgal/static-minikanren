@@ -1,0 +1,287 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE TypeApplications #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Kanren.Example.List</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Example.List.html#example"><span class="hs-identifier">example</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&amp;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromJust</span></span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Core.html"><span class="hs-identifier">Kanren.Core</span></a></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Goal.html"><span class="hs-identifier">Kanren.Goal</span></a></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.LogicalBase.html"><span class="hs-identifier">Kanren.LogicalBase</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Match.html"><span class="hs-identifier">Kanren.Match</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span id="local-6989586621679171021"><span class="annot"><a href="Kanren.Example.List.html#listo"><span class="hs-identifier hs-type">listo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logical"><span class="hs-identifier hs-type">Logical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679171021"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679171021"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-15"></span><span id="listo"><span class="annot"><span class="annottext">listo :: forall a. Logical a =&gt; Term [a] -&gt; Goal ()
+</span><a href="Kanren.Example.List.html#listo"><span class="hs-identifier hs-var hs-var">listo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-16"></span><span>  </span><span class="annot"><span class="annottext">Term [a] -&gt; Goal ()
+forall a x. Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#matche"><span class="hs-identifier hs-var">matche</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="annot"><span class="annottext">(Term [a] -&gt; Goal ())
+-&gt; ((Term [a] -&gt; Goal ()) -&gt; Term [a] -&gt; Goal ())
+-&gt; Term [a]
+-&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Prism' (Logic [a]) ()
+-&gt; (() -&gt; Goal ()) -&gt; (Term [a] -&gt; Goal ()) -&gt; Term [a] -&gt; Goal ()
+forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var">on</span></a></span><span> </span><span class="annot"><span class="annottext">p () (f ()) -&gt; p (Logic [a]) (f (Logic [a]))
+p () (f ()) -&gt; p (LogicList a) (f (LogicList a))
+forall a (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p () (f ()) -&gt; p (LogicList a) (f (LogicList a))
+Prism' (Logic [a]) ()
+</span><a href="Kanren.LogicalBase.html#_LogicNil"><span class="hs-identifier hs-var">_LogicNil</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; Goal ()
+forall a. a -&gt; Goal a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-18"></span><span>    </span><span class="annot"><span class="annottext">(Term [a] -&gt; Goal ())
+-&gt; ((Term [a] -&gt; Goal ()) -&gt; Term [a] -&gt; Goal ())
+-&gt; Term [a]
+-&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Prism' (Logic [a]) (Term a, Term [a])
+-&gt; ((Term a, Term [a]) -&gt; Goal ())
+-&gt; (Term [a] -&gt; Goal ())
+-&gt; Term [a]
+-&gt; Goal ()
+forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var">on</span></a></span><span> </span><span class="annot"><span class="annottext">p (Term a, Term [a]) (f (Term a, Term [a]))
+-&gt; p (Logic [a]) (f (Logic [a]))
+p (Term a, Term [a]) (f (Term a, Term [a]))
+-&gt; p (LogicList a) (f (LogicList a))
+forall a1 a2 (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Term a1, Term [a1]) (f (Term a2, Term [a2]))
+-&gt; p (LogicList a1) (f (LogicList a2))
+Prism' (Logic [a]) (Term a, Term [a])
+</span><a href="Kanren.LogicalBase.html#_LogicCons"><span class="hs-identifier hs-var">_LogicCons</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679171143"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171143"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term [a] -&gt; Goal ()
+forall a. Logical a =&gt; Term [a] -&gt; Goal ()
+</span><a href="Kanren.Example.List.html#listo"><span class="hs-identifier hs-var">listo</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171143"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">{- FOURMOLU_DISABLE -}</span><span>
+</span><span id="line-21"></span><span id="local-6989586621679171049"><span class="annot"><a href="Kanren.Example.List.html#appendo"><span class="hs-identifier hs-type">appendo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logical"><span class="hs-identifier hs-type">Logical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679171049"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679171049"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679171049"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679171049"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-22"></span><span id="appendo"><span class="annot"><span class="annottext">appendo :: forall a. Logical a =&gt; Term [a] -&gt; Term [a] -&gt; Term [a] -&gt; Goal ()
+</span><a href="Kanren.Example.List.html#appendo"><span class="hs-identifier hs-var hs-var">appendo</span></a></span></span><span> </span><span id="local-6989586621679171157"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171157"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679171158"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171158"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621679171159"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171159"><span class="hs-identifier hs-var">zs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171157"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a] -&gt; (Term [a] -&gt; Goal ()) -&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term [a] -&gt; Goal ()
+forall a x. Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#matche"><span class="hs-identifier hs-var">matche</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><span class="annottext">(Term [a] -&gt; Goal ())
+-&gt; ((Term [a] -&gt; Goal ()) -&gt; Term [a] -&gt; Goal ())
+-&gt; Term [a]
+-&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Prism' (Logic [a]) ()
+-&gt; (() -&gt; Goal ()) -&gt; (Term [a] -&gt; Goal ()) -&gt; Term [a] -&gt; Goal ()
+forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var">on</span></a></span><span> </span><span class="annot"><span class="annottext">p () (f ()) -&gt; p (Logic [a]) (f (Logic [a]))
+p () (f ()) -&gt; p (LogicList a) (f (LogicList a))
+forall a (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p () (f ()) -&gt; p (LogicList a) (f (LogicList a))
+Prism' (Logic [a]) ()
+</span><a href="Kanren.LogicalBase.html#_LogicNil"><span class="hs-identifier hs-var">_LogicNil</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171158"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a] -&gt; Term [a] -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171159"><span class="hs-identifier hs-var">zs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>  </span><span class="annot"><span class="annottext">(Term [a] -&gt; Goal ())
+-&gt; ((Term [a] -&gt; Goal ()) -&gt; Term [a] -&gt; Goal ())
+-&gt; Term [a]
+-&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Prism' (Logic [a]) (Term a, Term [a])
+-&gt; ((Term a, Term [a]) -&gt; Goal ())
+-&gt; (Term [a] -&gt; Goal ())
+-&gt; Term [a]
+-&gt; Goal ()
+forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var">on</span></a></span><span> </span><span class="annot"><span class="annottext">p (Term a, Term [a]) (f (Term a, Term [a]))
+-&gt; p (Logic [a]) (f (Logic [a]))
+p (Term a, Term [a]) (f (Term a, Term [a]))
+-&gt; p (LogicList a) (f (LogicList a))
+forall a1 a2 (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Term a1, Term [a1]) (f (Term a2, Term [a2]))
+-&gt; p (LogicList a1) (f (LogicList a2))
+Prism' (Logic [a]) (Term a, Term [a])
+</span><a href="Kanren.LogicalBase.html#_LogicCons"><span class="hs-identifier hs-var">_LogicCons</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679171169"><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679171169"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679171170"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171170"><span class="hs-identifier hs-var">xs'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-25"></span><span>      </span><span id="local-6989586621679171171"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171171"><span class="hs-identifier hs-var">zs'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term [a])
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-26"></span><span>      </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171159"><span class="hs-identifier hs-var">zs</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a] -&gt; Term [a] -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic [a] -&gt; Term [a]
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term a -&gt; Term [a] -&gt; LogicList a
+forall a. Term a -&gt; Term [a] -&gt; LogicList a
+</span><a href="Kanren.LogicalBase.html#LogicCons"><span class="hs-identifier hs-var">LogicCons</span></a></span><span> </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679171169"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171171"><span class="hs-identifier hs-var">zs'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>      </span><span class="annot"><span class="annottext">Term [a] -&gt; Term [a] -&gt; Term [a] -&gt; Goal ()
+forall a. Logical a =&gt; Term [a] -&gt; Term [a] -&gt; Term [a] -&gt; Goal ()
+</span><a href="Kanren.Example.List.html#appendo"><span class="hs-identifier hs-var">appendo</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171170"><span class="hs-identifier hs-var">xs'</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171158"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171171"><span class="hs-identifier hs-var">zs'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-comment">{- FOURMOLU_ENABLE -}</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span id="local-6989586621679171059"><span class="annot"><a href="Kanren.Example.List.html#partitions"><span class="hs-identifier hs-type">partitions</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logical"><span class="hs-identifier hs-type">Logical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679171059"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679171059"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679171059"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679171059"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-31"></span><span id="partitions"><span class="annot"><span class="annottext">partitions :: forall a. Logical a =&gt; [a] -&gt; [([a], [a])]
+</span><a href="Kanren.Example.List.html#partitions"><span class="hs-identifier hs-var hs-var">partitions</span></a></span></span><span> </span><span id="local-6989586621679171179"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679171179"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Term [a], Term [a]) -&gt; ([a], [a])
+</span><a href="#local-6989586621679171180"><span class="hs-identifier hs-var">reifyBoth</span></a></span><span> </span><span class="annot"><span class="annottext">((Term [a], Term [a]) -&gt; ([a], [a]))
+-&gt; [(Term [a], Term [a])] -&gt; [([a], [a])]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[(Term [a], Term [a])]
+</span><a href="#local-6989586621679171182"><span class="hs-identifier hs-var">partitioned</span></a></span><span>
+</span><span id="line-32"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>  </span><span id="local-6989586621679171182"><span class="annot"><span class="annottext">partitioned :: [(Term [a], Term [a])]
+</span><a href="#local-6989586621679171182"><span class="hs-identifier hs-var hs-var">partitioned</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Term [a], Term [a]) -&gt; Goal ()) -&gt; [(Term [a], Term [a])]
+forall v. Fresh v =&gt; (v -&gt; Goal ()) -&gt; [v]
+</span><a href="Kanren.Goal.html#run"><span class="hs-identifier hs-var">run</span></a></span><span> </span><span class="annot"><span class="annottext">(((Term [a], Term [a]) -&gt; Goal ()) -&gt; [(Term [a], Term [a])])
+-&gt; ((Term [a], Term [a]) -&gt; Goal ()) -&gt; [(Term [a], Term [a])]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679171190"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171190"><span class="hs-identifier hs-var">left</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679171191"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171191"><span class="hs-identifier hs-var">right</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><span class="annottext">Term [a] -&gt; Term [a] -&gt; Term [a] -&gt; Goal ()
+forall a. Logical a =&gt; Term [a] -&gt; Term [a] -&gt; Term [a] -&gt; Goal ()
+</span><a href="Kanren.Example.List.html#appendo"><span class="hs-identifier hs-var">appendo</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171190"><span class="hs-identifier hs-var">left</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171191"><span class="hs-identifier hs-var">right</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[a] -&gt; Term [a]
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679171179"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>  </span><span id="local-6989586621679171180"><span class="annot"><span class="annottext">reifyBoth :: (Term [a], Term [a]) -&gt; ([a], [a])
+</span><a href="#local-6989586621679171180"><span class="hs-identifier hs-var hs-var">reifyBoth</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679171193"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171193"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679171194"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171194"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term [a] -&gt; [a]
+</span><a href="#local-6989586621679171195"><span class="hs-identifier hs-var">reify</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171193"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Term [a] -&gt; [a]
+</span><a href="#local-6989586621679171195"><span class="hs-identifier hs-var">reify</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171194"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621679171195"><span class="annot"><span class="annottext">reify :: Term [a] -&gt; [a]
+</span><a href="#local-6989586621679171195"><span class="hs-identifier hs-var hs-var">reify</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe [a] -&gt; [a]
+forall a. HasCallStack =&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromJust</span></span><span> </span><span class="annot"><span class="annottext">(Maybe [a] -&gt; [a]) -&gt; (Term [a] -&gt; Maybe [a]) -&gt; Term [a] -&gt; [a]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Term [a] -&gt; Maybe [a]
+forall a. Logical a =&gt; Term a -&gt; Maybe a
+</span><a href="Kanren.Core.html#extract%27"><span class="hs-identifier hs-var">extract'</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span id="local-6989586621679171075"><span class="annot"><a href="Kanren.Example.List.html#showLogicList"><span class="hs-identifier hs-type">showLogicList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679171075"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679171075"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-40"></span><span id="showLogicList"><span class="annot"><span class="annottext">showLogicList :: forall a. Show (Logic a) =&gt; Term [a] -&gt; String
+</span><a href="Kanren.Example.List.html#showLogicList"><span class="hs-identifier hs-var hs-var">showLogicList</span></a></span></span><span> </span><span id="local-6989586621679171204"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171204"><span class="hs-identifier hs-var">list</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term [a] -&gt; String
+forall a. Show (Logic a) =&gt; Term [a] -&gt; String
+</span><a href="#local-6989586621679171205"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171204"><span class="hs-identifier hs-var">list</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;]&quot;</span></span><span>
+</span><span id="line-41"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>  </span><span id="local-6989586621679171205"><span class="annot"><span class="annottext">go :: Term [a] -&gt; String
+</span><a href="#local-6989586621679171205"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="annot"><span class="annottext">VarId [a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;..?&quot;</span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="annot"><a href="#local-6989586621679171205"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic [a]
+LogicList a
+</span><a href="Kanren.LogicalBase.html#LogicNil"><span class="hs-identifier hs-var">LogicNil</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><a href="#local-6989586621679171205"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.LogicalBase.html#LogicCons"><span class="hs-identifier hs-type">LogicCons</span></a></span><span> </span><span id="local-6989586621679171212"><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679171212"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679171213"><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171213"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term a -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679171212"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679171215"><span class="hs-identifier hs-var">sep</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term [a] -&gt; String
+</span><a href="#local-6989586621679171205"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171213"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-45"></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-46"></span><span>    </span><span id="local-6989586621679171215"><span class="annot"><span class="annottext">sep :: String
+</span><a href="#local-6989586621679171215"><span class="hs-identifier hs-var hs-var">sep</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Term [a]
+</span><a href="#local-6989586621679171213"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-47"></span><span>      </span><span class="annot"><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic [a]
+LogicList a
+</span><a href="Kanren.LogicalBase.html#LogicNil"><span class="hs-identifier hs-var">LogicNil</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-48"></span><span>      </span><span class="annot"><span class="annottext">Term [a]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;, &quot;</span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="annot"><a href="Kanren.Example.List.html#example"><span class="hs-identifier hs-type">example</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span id="example"><span class="annot"><span class="annottext">example :: IO ()
+</span><a href="Kanren.Example.List.html#example"><span class="hs-identifier hs-var hs-var">example</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-52"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;listo:&quot;</span></span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><span class="annottext">(Term [Int] -&gt; IO ()) -&gt; [Term [Int]] -&gt; IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; IO ()) -&gt; (Term [Int] -&gt; String) -&gt; Term [Int] -&gt; IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Term [Int] -&gt; String
+forall a. Show (Logic a) =&gt; Term [a] -&gt; String
+</span><a href="Kanren.Example.List.html#showLogicList"><span class="hs-identifier hs-var">showLogicList</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([Term [Int]] -&gt; IO ()) -&gt; [Term [Int]] -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Term [Int]] -&gt; [Term [Int]]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">5</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Term [Int] -&gt; Goal ()) -&gt; [Term [Int]]
+forall v. Fresh v =&gt; (v -&gt; Goal ()) -&gt; [v]
+</span><a href="Kanren.Goal.html#run"><span class="hs-identifier hs-var">run</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Logical a =&gt; Term [a] -&gt; Goal ()
+</span><a href="Kanren.Example.List.html#listo"><span class="hs-identifier hs-var">listo</span></a></span><span> </span><span class="hs-glyph">@</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\npartitions [1, 2, 3]:&quot;</span></span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">(([Int], [Int]) -&gt; IO ()) -&gt; [([Int], [Int])] -&gt; IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">([Int], [Int]) -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">([([Int], [Int])] -&gt; IO ()) -&gt; [([Int], [Int])] -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; [([Int], [Int])]
+forall a. Logical a =&gt; [a] -&gt; [([a], [a])]
+</span><a href="Kanren.Example.List.html#partitions"><span class="hs-identifier hs-var">partitions</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3</span></span><span class="hs-special">]</span><span>
+</span><span id="line-57"></span></pre></body></html>

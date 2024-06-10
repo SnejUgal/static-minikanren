@@ -1,0 +1,668 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE FlexibleInstances     #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes            #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables   #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeApplications      #-}</span><span>
+</span><span id="line-7"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators         #-}</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- | 'Generic' implementations of 'Logical' methods.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- As discussed in the documentation for the 'Logical' class, method</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- implementations are not particularly interesting and can be easily</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- automated. This module provides such automated implementations using</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- 'Generic'.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- This module expects that you already have a logical representation for your</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- type, and there's already a 'Logic' type instance. The logical type must not</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- change the order of constructors as well as the order of fields in each</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- constructor, but the names do not matter. Additionally, each field in the</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- original type must be wrapped in a 'Term' in the logical representation.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- For example, consider the following type definition:</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- &gt; data Tree a</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- &gt;   = Leaf a</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- &gt;   | Node (Tree a) (Tree a)</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- &gt;   deriving (Generic)</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- &gt; data LogicTree a</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- &gt;   = LogicLeaf (Term a)</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- &gt;   | LogicNode (Term (Tree a)) (Term (Tree a))</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- &gt;   deriving (Generic)</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- From there, using the generic implementations is trivial:</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- &gt; instance (Logical a) =&gt; Logical (Tree a) where</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- &gt;   type Logic (Tree a) = LogicTree a</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- &gt;   unify = genericUnify</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- &gt;   subst = genericSubst</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- &gt;   inject = genericInject</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- &gt;   extract = genericExtract</span><span>
+</span><span id="line-42"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Kanren.GenericLogical</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-43"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#genericUnify"><span class="hs-identifier">genericUnify</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#genericWalk"><span class="hs-identifier">genericWalk</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-45"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#genericOccursCheck"><span class="hs-identifier">genericOccursCheck</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-46"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#genericInject"><span class="hs-identifier">genericInject</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-47"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#genericExtract"><span class="hs-identifier">genericExtract</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier">GLogical</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-49"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&gt;=&gt;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Proxy</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Proxy</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Kanren.Core.html"><span class="hs-identifier">Kanren.Core</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">class</span><span> </span><span id="GLogical"><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-var">GLogical</span></a></span></span><span> </span><span id="local-6989586621679168412"><span class="annot"><a href="#local-6989586621679168412"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span id="local-6989586621679168413"><span class="annot"><a href="#local-6989586621679168413"><span class="hs-identifier hs-type">f'</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-58"></span><span>  </span><span id="gunify"><span class="annot"><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-type">gunify</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679168403"><span class="annot"><span class="hs-identifier hs-type">Proxy</span></span><span> </span><span class="annot"><a href="#local-6989586621679168412"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679168413"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168403"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679168413"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168403"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Kanren.Core.html#State"><span class="hs-identifier hs-type">State</span></a></span></span><span>
+</span><span id="line-59"></span><span>  </span><span id="gwalk"><span class="annot"><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-type">gwalk</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679168405"><span class="annot"><span class="hs-identifier hs-type">Proxy</span></span><span> </span><span class="annot"><a href="#local-6989586621679168412"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679168413"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168405"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679168413"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168405"><span class="hs-identifier hs-type">p</span></a></span></span><span>
+</span><span id="line-60"></span><span>  </span><span id="goccursCheck"><span class="annot"><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-type">goccursCheck</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679168406"><span id="local-6989586621679168408"><span class="annot"><span class="hs-identifier hs-type">Proxy</span></span><span> </span><span class="annot"><a href="#local-6989586621679168412"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#VarId"><span class="hs-identifier hs-type">VarId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168406"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679168413"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168408"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-61"></span><span>  </span><span id="ginject"><span class="annot"><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-type">ginject</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679168409"><span class="annot"><a href="#local-6989586621679168412"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168409"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679168413"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168409"><span class="hs-identifier hs-type">p</span></a></span></span><span>
+</span><span id="line-62"></span><span>  </span><span id="gextract"><span class="annot"><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-type">gextract</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679168410"><span class="annot"><a href="#local-6989586621679168413"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168410"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679168412"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168410"><span class="hs-identifier hs-type">p</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">V1</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">V1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-65"></span><span>  </span><span id="local-6989586621679168559"><span class="annot"><span class="annottext">gunify :: forall p. Proxy V1 -&gt; V1 p -&gt; V1 p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var hs-var hs-var hs-var">gunify</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy V1
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">V1 p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">V1 p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State -&gt; Maybe State
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span>
+</span><span id="line-66"></span><span>  </span><span id="local-6989586621679168560"><span class="annot"><span class="annottext">gwalk :: forall p. Proxy V1 -&gt; State -&gt; V1 p -&gt; V1 p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var hs-var hs-var hs-var">gwalk</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy V1
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">State
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">V1 p -&gt; V1 p
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-67"></span><span>  </span><span id="local-6989586621679168562"><span class="annot"><span class="annottext">goccursCheck :: forall b p. Proxy V1 -&gt; VarId b -&gt; V1 p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var hs-var hs-var hs-var">goccursCheck</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy V1
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">V1 p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">State
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-68"></span><span>  </span><span id="local-6989586621679168563"><span class="annot"><span class="annottext">ginject :: forall p. V1 p -&gt; V1 p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var hs-var hs-var hs-var">ginject</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">V1 p -&gt; V1 p
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621679168564"><span class="annot"><span class="annottext">gextract :: forall p. V1 p -&gt; Maybe (V1 p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var hs-var hs-var hs-var">gextract</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">V1 p -&gt; Maybe (V1 p)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">U1</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621679168571"><span class="annot"><span class="annottext">gunify :: forall p. Proxy U1 -&gt; U1 p -&gt; U1 p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var hs-var hs-var hs-var">gunify</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy U1
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">U1 p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">U1 p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State -&gt; Maybe State
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span>
+</span><span id="line-73"></span><span>  </span><span id="local-6989586621679168572"><span class="annot"><span class="annottext">gwalk :: forall p. Proxy U1 -&gt; State -&gt; U1 p -&gt; U1 p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var hs-var hs-var hs-var">gwalk</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy U1
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">State
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">U1 p -&gt; U1 p
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621679168573"><span class="annot"><span class="annottext">goccursCheck :: forall b p. Proxy U1 -&gt; VarId b -&gt; U1 p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var hs-var hs-var hs-var">goccursCheck</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy U1
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">U1 p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">State
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621679168574"><span class="annot"><span class="annottext">ginject :: forall p. U1 p -&gt; U1 p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var hs-var hs-var hs-var">ginject</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">U1 p -&gt; U1 p
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621679168575"><span class="annot"><span class="annottext">gextract :: forall p. U1 p -&gt; Maybe (U1 p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var hs-var hs-var hs-var">gextract</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">U1 p -&gt; Maybe (U1 p)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679168432"><span id="local-6989586621679168433"><span id="local-6989586621679168434"><span id="local-6989586621679168435"><span class="hs-special">(</span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168432"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168433"><span class="hs-identifier hs-type">f'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168434"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168435"><span class="hs-identifier hs-type">g'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679168432"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679168434"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679168433"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:+:</span></span><span> </span><span class="annot"><a href="#local-6989586621679168435"><span class="hs-identifier hs-type">g'</span></a></span><span class="hs-special">)</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-79"></span><span>  </span><span id="local-6989586621679168586"><span class="annot"><span class="annottext">gunify :: forall p.
+Proxy (f :+: g)
+-&gt; (:+:) f' g' p -&gt; (:+:) f' g' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var hs-var hs-var hs-var">gunify</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (f :+: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679168588"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168588"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679168589"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168589"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+forall p. Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var">gunify</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168432"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168588"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168589"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-80"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var">gunify</span></a></span><span> </span><span class="annot"><span class="annottext">Proxy (f :+: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679168592"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168592"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679168593"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168593"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy g -&gt; g' p -&gt; g' p -&gt; State -&gt; Maybe State
+forall p. Proxy g -&gt; g' p -&gt; g' p -&gt; State -&gt; Maybe State
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var">gunify</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168434"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168592"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168593"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-81"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var">gunify</span></a></span><span> </span><span class="annot"><span class="annottext">Proxy (f :+: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">(:+:) f' g' p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">(:+:) f' g' p
+</span><span class="hs-identifier">_</span></span><span>           </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe State -&gt; State -&gt; Maybe State
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Maybe State
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span>  </span><span id="local-6989586621679168597"><span class="annot"><span class="annottext">gwalk :: forall p.
+Proxy (f :+: g) -&gt; State -&gt; (:+:) f' g' p -&gt; (:+:) f' g' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var hs-var hs-var hs-var">gwalk</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (f :+: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168598"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168598"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679168599"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168599"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f' p -&gt; (:+:) f' g' p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). f p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">L1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy f -&gt; State -&gt; f' p -&gt; f' p
+forall p. Proxy f -&gt; State -&gt; f' p -&gt; f' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; State -&gt; f' p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var">gwalk</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168432"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168598"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168599"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var">gwalk</span></a></span><span> </span><span class="annot"><span class="annottext">Proxy (f :+: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168600"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168600"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679168601"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168601"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g' p -&gt; (:+:) f' g' p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). g p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">R1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy g -&gt; State -&gt; g' p -&gt; g' p
+forall p. Proxy g -&gt; State -&gt; g' p -&gt; g' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; State -&gt; f' p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var">gwalk</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168434"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168600"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168601"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621679168604"><span class="annot"><span class="annottext">goccursCheck :: forall b p.
+Proxy (f :+: g) -&gt; VarId b -&gt; (:+:) f' g' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var hs-var hs-var hs-var">goccursCheck</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (f :+: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168605"><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168605"><span class="hs-identifier hs-var">varId</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679168606"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168606"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+forall b p. Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+forall (f :: * -&gt; *) (f' :: * -&gt; *) b p.
+GLogical f f' =&gt;
+Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var">goccursCheck</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168432"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168605"><span class="hs-identifier hs-var">varId</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168606"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var">goccursCheck</span></a></span><span> </span><span class="annot"><span class="annottext">Proxy (f :+: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168607"><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168607"><span class="hs-identifier hs-var">varId</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679168608"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168608"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy g -&gt; VarId b -&gt; g' p -&gt; State -&gt; Bool
+forall b p. Proxy g -&gt; VarId b -&gt; g' p -&gt; State -&gt; Bool
+forall (f :: * -&gt; *) (f' :: * -&gt; *) b p.
+GLogical f f' =&gt;
+Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var">goccursCheck</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168434"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168607"><span class="hs-identifier hs-var">varId</span></a></span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168608"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span>  </span><span id="local-6989586621679168611"><span class="annot"><span class="annottext">ginject :: forall p. (:+:) f g p -&gt; (:+:) f' g' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var hs-var hs-var hs-var">ginject</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679168612"><span class="annot"><span class="annottext">f p
+</span><a href="#local-6989586621679168612"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f' p -&gt; (:+:) f' g' p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). f p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">L1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f p -&gt; f' p
+forall p. f p -&gt; f' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p. GLogical f f' =&gt; f p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var">ginject</span></a></span><span> </span><span class="annot"><span class="annottext">f p
+</span><a href="#local-6989586621679168612"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var">ginject</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679168613"><span class="annot"><span class="annottext">g p
+</span><a href="#local-6989586621679168613"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g' p -&gt; (:+:) f' g' p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). g p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">R1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">g p -&gt; g' p
+forall p. g p -&gt; g' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p. GLogical f f' =&gt; f p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var">ginject</span></a></span><span> </span><span class="annot"><span class="annottext">g p
+</span><a href="#local-6989586621679168613"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span>  </span><span id="local-6989586621679168619"><span class="annot"><span class="annottext">gextract :: forall p. (:+:) f' g' p -&gt; Maybe ((:+:) f g p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var hs-var hs-var hs-var">gextract</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">L1</span></span><span> </span><span id="local-6989586621679168620"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168620"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f p -&gt; (:+:) f g p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). f p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">L1</span></span><span> </span><span class="annot"><span class="annottext">(f p -&gt; (:+:) f g p) -&gt; Maybe (f p) -&gt; Maybe ((:+:) f g p)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">f' p -&gt; Maybe (f p)
+forall p. f' p -&gt; Maybe (f p)
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+f' p -&gt; Maybe (f p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var">gextract</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168620"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-93"></span><span>  </span><span class="annot"><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var">gextract</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">R1</span></span><span> </span><span id="local-6989586621679168622"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168622"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">g p -&gt; (:+:) f g p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k). g p -&gt; (:+:) f g p
+</span><span class="hs-identifier hs-var">R1</span></span><span> </span><span class="annot"><span class="annottext">(g p -&gt; (:+:) f g p) -&gt; Maybe (g p) -&gt; Maybe ((:+:) f g p)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">g' p -&gt; Maybe (g p)
+forall p. g' p -&gt; Maybe (g p)
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+f' p -&gt; Maybe (f p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var">gextract</span></a></span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168622"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679168457"><span id="local-6989586621679168458"><span id="local-6989586621679168459"><span id="local-6989586621679168460"><span class="hs-special">(</span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168457"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168458"><span class="hs-identifier hs-type">f'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168459"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168460"><span class="hs-identifier hs-type">g'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679168457"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span class="annot"><a href="#local-6989586621679168459"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679168458"><span class="hs-identifier hs-type">f'</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span class="annot"><a href="#local-6989586621679168460"><span class="hs-identifier hs-type">g'</span></a></span><span class="hs-special">)</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621679168635"><span class="annot"><span class="annottext">gunify :: forall p.
+Proxy (f :*: g)
+-&gt; (:*:) f' g' p -&gt; (:*:) f' g' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var hs-var hs-var hs-var">gunify</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (f :*: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679168636"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168636"><span class="hs-identifier hs-var">x1</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679168638"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168638"><span class="hs-identifier hs-var">y1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679168639"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168639"><span class="hs-identifier hs-var">x2</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679168640"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168640"><span class="hs-identifier hs-var">y2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-97"></span><span>    </span><span class="annot"><span class="annottext">Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+forall p. Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var">gunify</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168457"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168636"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168639"><span class="hs-identifier hs-var">x2</span></a></span><span> </span><span class="annot"><span class="annottext">(State -&gt; Maybe State)
+-&gt; (State -&gt; Maybe State) -&gt; State -&gt; Maybe State
+forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+(a -&gt; m b) -&gt; (b -&gt; m c) -&gt; a -&gt; m c
+</span><span class="hs-operator hs-var">&gt;=&gt;</span></span><span> </span><span class="annot"><span class="annottext">Proxy g -&gt; g' p -&gt; g' p -&gt; State -&gt; Maybe State
+forall p. Proxy g -&gt; g' p -&gt; g' p -&gt; State -&gt; Maybe State
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var">gunify</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168459"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168638"><span class="hs-identifier hs-var">y1</span></a></span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168640"><span class="hs-identifier hs-var">y2</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621679168643"><span class="annot"><span class="annottext">gwalk :: forall p.
+Proxy (f :*: g) -&gt; State -&gt; (:*:) f' g' p -&gt; (:*:) f' g' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var hs-var hs-var hs-var">gwalk</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (f :*: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168644"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168644"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679168645"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168645"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679168646"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168646"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy f -&gt; State -&gt; f' p -&gt; f' p
+forall p. Proxy f -&gt; State -&gt; f' p -&gt; f' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; State -&gt; f' p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var">gwalk</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168457"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168644"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168645"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">f' p -&gt; g' p -&gt; (:*:) f' g' p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k).
+f p -&gt; g p -&gt; (:*:) f g p
+</span><span class="hs-operator hs-var">:*:</span></span><span> </span><span class="annot"><span class="annottext">Proxy g -&gt; State -&gt; g' p -&gt; g' p
+forall p. Proxy g -&gt; State -&gt; g' p -&gt; g' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; State -&gt; f' p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var">gwalk</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168459"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168644"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168646"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span id="local-6989586621679168649"><span class="annot"><span class="annottext">goccursCheck :: forall b p.
+Proxy (f :*: g) -&gt; VarId b -&gt; (:*:) f' g' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var hs-var hs-var hs-var">goccursCheck</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (f :*: g)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168650"><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168650"><span class="hs-identifier hs-var">varId</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679168651"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168651"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679168652"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168652"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679168653"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168653"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-100"></span><span>    </span><span class="annot"><span class="annottext">Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+forall b p. Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+forall (f :: * -&gt; *) (f' :: * -&gt; *) b p.
+GLogical f f' =&gt;
+Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var">goccursCheck</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168457"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168650"><span class="hs-identifier hs-var">varId</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168651"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168653"><span class="hs-identifier hs-var">state</span></a></span><span>
+</span><span id="line-101"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Proxy g -&gt; VarId b -&gt; g' p -&gt; State -&gt; Bool
+forall b p. Proxy g -&gt; VarId b -&gt; g' p -&gt; State -&gt; Bool
+forall (f :: * -&gt; *) (f' :: * -&gt; *) b p.
+GLogical f f' =&gt;
+Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var">goccursCheck</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168459"><span class="hs-identifier hs-type">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168650"><span class="hs-identifier hs-var">varId</span></a></span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168652"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168653"><span class="hs-identifier hs-var">state</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span id="local-6989586621679168657"><span class="annot"><span class="annottext">ginject :: forall p. (:*:) f g p -&gt; (:*:) f' g' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var hs-var hs-var hs-var">ginject</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679168658"><span class="annot"><span class="annottext">f p
+</span><a href="#local-6989586621679168658"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679168659"><span class="annot"><span class="annottext">g p
+</span><a href="#local-6989586621679168659"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f p -&gt; f' p
+forall p. f p -&gt; f' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p. GLogical f f' =&gt; f p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var">ginject</span></a></span><span> </span><span class="annot"><span class="annottext">f p
+</span><a href="#local-6989586621679168658"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">f' p -&gt; g' p -&gt; (:*:) f' g' p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k).
+f p -&gt; g p -&gt; (:*:) f g p
+</span><span class="hs-operator hs-var">:*:</span></span><span> </span><span class="annot"><span class="annottext">g p -&gt; g' p
+forall p. g p -&gt; g' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p. GLogical f f' =&gt; f p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var">ginject</span></a></span><span> </span><span class="annot"><span class="annottext">g p
+</span><a href="#local-6989586621679168659"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-103"></span><span>  </span><span id="local-6989586621679168665"><span class="annot"><span class="annottext">gextract :: forall p. (:*:) f' g' p -&gt; Maybe ((:*:) f g p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var hs-var hs-var hs-var">gextract</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679168666"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168666"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-type">:*:</span></span><span> </span><span id="local-6989586621679168667"><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168667"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-104"></span><span>    </span><span id="local-6989586621679168668"><span class="annot"><span class="annottext">f p
+</span><a href="#local-6989586621679168668"><span class="hs-identifier hs-var">x'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">f' p -&gt; Maybe (f p)
+forall p. f' p -&gt; Maybe (f p)
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+f' p -&gt; Maybe (f p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var">gextract</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168666"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span id="local-6989586621679168669"><span class="annot"><span class="annottext">g p
+</span><a href="#local-6989586621679168669"><span class="hs-identifier hs-var">y'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">g' p -&gt; Maybe (g p)
+forall p. g' p -&gt; Maybe (g p)
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+f' p -&gt; Maybe (f p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var">gextract</span></a></span><span> </span><span class="annot"><span class="annottext">g' p
+</span><a href="#local-6989586621679168667"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><span class="annottext">(:*:) f g p -&gt; Maybe ((:*:) f g p)
+forall a. a -&gt; Maybe a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f p
+</span><a href="#local-6989586621679168668"><span class="hs-identifier hs-var">x'</span></a></span><span> </span><span class="annot"><span class="annottext">f p -&gt; g p -&gt; (:*:) f g p
+forall k (f :: k -&gt; *) (g :: k -&gt; *) (p :: k).
+f p -&gt; g p -&gt; (:*:) f g p
+</span><span class="hs-operator hs-var">:*:</span></span><span> </span><span class="annot"><span class="annottext">g p
+</span><a href="#local-6989586621679168669"><span class="hs-identifier hs-var">y'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679168482"><span id="local-6989586621679168483"><span id="local-6989586621679168484"><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logical"><span class="hs-identifier hs-type">Logical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168482"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span class="annot"><a href="#local-6989586621679168483"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168482"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span class="annot"><a href="#local-6989586621679168484"><span class="hs-identifier hs-type">i'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168482"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-109"></span><span>  </span><span id="local-6989586621679168678"><span class="annot"><span class="annottext">gunify :: forall p.
+Proxy (K1 i c)
+-&gt; K1 i' (Term c) p -&gt; K1 i' (Term c) p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var hs-var hs-var hs-var">gunify</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (K1 i c)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span id="local-6989586621679168680"><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168680"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span id="local-6989586621679168681"><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168681"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term c -&gt; Term c -&gt; State -&gt; Maybe State
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; State -&gt; Maybe State
+</span><a href="Kanren.Core.html#unify%27"><span class="hs-identifier hs-var">unify'</span></a></span><span> </span><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168680"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168681"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-110"></span><span>  </span><span id="local-6989586621679168684"><span class="annot"><span class="annottext">gwalk :: forall p.
+Proxy (K1 i c) -&gt; State -&gt; K1 i' (Term c) p -&gt; K1 i' (Term c) p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var hs-var hs-var hs-var">gwalk</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (K1 i c)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168685"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168685"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span id="local-6989586621679168686"><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168686"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term c -&gt; K1 i' (Term c) p
+forall k i c (p :: k). c -&gt; K1 i c p
+</span><span class="hs-identifier hs-var">K1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">State -&gt; Term c -&gt; Term c
+forall a. Logical a =&gt; State -&gt; Term a -&gt; Term a
+</span><a href="Kanren.Core.html#walk%27"><span class="hs-identifier hs-var">walk'</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168685"><span class="hs-identifier hs-var">state</span></a></span><span> </span><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168686"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>  </span><span id="local-6989586621679168689"><span class="annot"><span class="annottext">goccursCheck :: forall b p.
+Proxy (K1 i c) -&gt; VarId b -&gt; K1 i' (Term c) p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var hs-var hs-var hs-var">goccursCheck</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (K1 i c)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168690"><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168690"><span class="hs-identifier hs-var">varId</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span id="local-6989586621679168691"><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168691"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">VarId b -&gt; Term c -&gt; State -&gt; Bool
+forall a b. Logical a =&gt; VarId b -&gt; Term a -&gt; State -&gt; Bool
+</span><a href="Kanren.Core.html#occursCheck%27"><span class="hs-identifier hs-var">occursCheck'</span></a></span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168690"><span class="hs-identifier hs-var">varId</span></a></span><span> </span><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168691"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-112"></span><span>  </span><span id="local-6989586621679168694"><span class="annot"><span class="annottext">ginject :: forall p. K1 i c p -&gt; K1 i' (Term c) p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var hs-var hs-var hs-var">ginject</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span id="local-6989586621679168695"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679168695"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term c -&gt; K1 i' (Term c) p
+forall k i c (p :: k). c -&gt; K1 i c p
+</span><span class="hs-identifier hs-var">K1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">c -&gt; Term c
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679168695"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>  </span><span id="local-6989586621679168699"><span class="annot"><span class="annottext">gextract :: forall p. K1 i' (Term c) p -&gt; Maybe (K1 i c p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var hs-var hs-var hs-var">gextract</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">K1</span></span><span> </span><span id="local-6989586621679168700"><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168700"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">c -&gt; K1 i c p
+forall k i c (p :: k). c -&gt; K1 i c p
+</span><span class="hs-identifier hs-var">K1</span></span><span> </span><span class="annot"><span class="annottext">(c -&gt; K1 i c p) -&gt; Maybe c -&gt; Maybe (K1 i c p)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Term c -&gt; Maybe c
+forall a. Logical a =&gt; Term a -&gt; Maybe a
+</span><a href="Kanren.Core.html#extract%27"><span class="hs-identifier hs-var">extract'</span></a></span><span> </span><span class="annot"><span class="annottext">Term c
+</span><a href="#local-6989586621679168700"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679168508"><span id="local-6989586621679168509"><span id="local-6989586621679168510"><span id="local-6989586621679168511"><span id="local-6989586621679168512"><span id="local-6989586621679168513"><span class="hs-special">(</span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168508"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168509"><span class="hs-identifier hs-type">f'</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span class="annot"><a href="#local-6989586621679168510"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168511"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168508"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span class="annot"><a href="#local-6989586621679168512"><span class="hs-identifier hs-type">i'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168513"><span class="hs-identifier hs-type">t'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168509"><span class="hs-identifier hs-type">f'</span></a></span><span class="hs-special">)</span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-116"></span><span>  </span><span id="local-6989586621679168710"><span class="annot"><span class="annottext">gunify :: forall p.
+Proxy (M1 i t f)
+-&gt; M1 i' t' f' p -&gt; M1 i' t' f' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var hs-var hs-var hs-var">gunify</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (M1 i t f)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679168712"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168712"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679168713"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168713"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+forall p. Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var">gunify</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168508"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168712"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168713"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-117"></span><span>  </span><span id="local-6989586621679168715"><span class="annot"><span class="annottext">gwalk :: forall p.
+Proxy (M1 i t f) -&gt; State -&gt; M1 i' t' f' p -&gt; M1 i' t' f' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var hs-var hs-var hs-var">gwalk</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (M1 i t f)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168716"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168716"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679168717"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168717"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f' p -&gt; M1 i' t' f' p
+forall k i (c :: Meta) (f :: k -&gt; *) (p :: k). f p -&gt; M1 i c f p
+</span><span class="hs-identifier hs-var">M1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy f -&gt; State -&gt; f' p -&gt; f' p
+forall p. Proxy f -&gt; State -&gt; f' p -&gt; f' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; State -&gt; f' p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var">gwalk</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168508"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168716"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168717"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-118"></span><span>  </span><span id="local-6989586621679168719"><span class="annot"><span class="annottext">goccursCheck :: forall b p.
+Proxy (M1 i t f) -&gt; VarId b -&gt; M1 i' t' f' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var hs-var hs-var hs-var">goccursCheck</span></a></span></span><span> </span><span class="annot"><span class="annottext">Proxy (M1 i t f)
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679168720"><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168720"><span class="hs-identifier hs-var">varId</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679168721"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168721"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+forall b p. Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+forall (f :: * -&gt; *) (f' :: * -&gt; *) b p.
+GLogical f f' =&gt;
+Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var">goccursCheck</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="annot"><a href="#local-6989586621679168508"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168720"><span class="hs-identifier hs-var">varId</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168721"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-119"></span><span>  </span><span id="local-6989586621679168723"><span class="annot"><span class="annottext">ginject :: forall p. M1 i t f p -&gt; M1 i' t' f' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var hs-var hs-var hs-var">ginject</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679168724"><span class="annot"><span class="annottext">f p
+</span><a href="#local-6989586621679168724"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f' p -&gt; M1 i' t' f' p
+forall k i (c :: Meta) (f :: k -&gt; *) (p :: k). f p -&gt; M1 i c f p
+</span><span class="hs-identifier hs-var">M1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f p -&gt; f' p
+forall p. f p -&gt; f' p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p. GLogical f f' =&gt; f p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var">ginject</span></a></span><span> </span><span class="annot"><span class="annottext">f p
+</span><a href="#local-6989586621679168724"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>  </span><span id="local-6989586621679168727"><span class="annot"><span class="annottext">gextract :: forall p. M1 i' t' f' p -&gt; Maybe (M1 i t f p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var hs-var hs-var hs-var">gextract</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">M1</span></span><span> </span><span id="local-6989586621679168728"><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168728"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">f p -&gt; M1 i t f p
+forall k i (c :: Meta) (f :: k -&gt; *) (p :: k). f p -&gt; M1 i c f p
+</span><span class="hs-identifier hs-var">M1</span></span><span> </span><span class="annot"><span class="annottext">(f p -&gt; M1 i t f p) -&gt; Maybe (f p) -&gt; Maybe (M1 i t f p)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">f' p -&gt; Maybe (f p)
+forall p. f' p -&gt; Maybe (f p)
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+f' p -&gt; Maybe (f p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var">gextract</span></a></span><span> </span><span class="annot"><span class="annottext">f' p
+</span><a href="#local-6989586621679168728"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="annot"><span class="hs-comment">-- | The generic implementation of 'unify'.</span></span><span>
+</span><span id="line-123"></span><span class="annot"><a href="Kanren.GenericLogical.html#genericUnify"><span class="hs-identifier hs-type">genericUnify</span></a></span><span>
+</span><span id="line-124"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679168525"><span class="annot"><a href="#local-6989586621679168525"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-125"></span><span>   </span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168525"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679168525"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168525"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168525"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168525"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Kanren.Core.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-130"></span><span id="genericUnify"><span class="annot"><span class="annottext">genericUnify :: forall a.
+(Generic (Logic a), GLogical (Rep a) (Rep (Logic a))) =&gt;
+Logic a -&gt; Logic a -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#genericUnify"><span class="hs-identifier hs-var hs-var">genericUnify</span></a></span></span><span> </span><span id="local-6989586621679168735"><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168735"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679168736"><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168736"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy (Rep a)
+-&gt; Rep (Logic a) Any -&gt; Rep (Logic a) Any -&gt; State -&gt; Maybe State
+forall p.
+Proxy (Rep a)
+-&gt; Rep (Logic a) p -&gt; Rep (Logic a) p -&gt; State -&gt; Maybe State
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; f' p -&gt; f' p -&gt; State -&gt; Maybe State
+</span><a href="Kanren.GenericLogical.html#gunify"><span class="hs-identifier hs-var">gunify</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679168525"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic a -&gt; Rep (Logic a) Any
+forall a x. Generic a =&gt; a -&gt; Rep a x
+forall x. Logic a -&gt; Rep (Logic a) x
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168735"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic a -&gt; Rep (Logic a) Any
+forall a x. Generic a =&gt; a -&gt; Rep a x
+forall x. Logic a -&gt; Rep (Logic a) x
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168736"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="annot"><span class="hs-comment">-- | The generic implementation of 'walk'.</span></span><span>
+</span><span id="line-133"></span><span class="annot"><a href="Kanren.GenericLogical.html#genericWalk"><span class="hs-identifier hs-type">genericWalk</span></a></span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679168530"><span class="annot"><a href="#local-6989586621679168530"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-135"></span><span>   </span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168530"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679168530"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168530"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168530"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-138"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168530"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-139"></span><span id="genericWalk"><span class="annot"><span class="annottext">genericWalk :: forall a.
+(Generic (Logic a), GLogical (Rep a) (Rep (Logic a))) =&gt;
+State -&gt; Logic a -&gt; Logic a
+</span><a href="Kanren.GenericLogical.html#genericWalk"><span class="hs-identifier hs-var hs-var">genericWalk</span></a></span></span><span> </span><span id="local-6989586621679168744"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168744"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679168745"><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168745"><span class="hs-identifier hs-var">term</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep (Logic a) Any -&gt; Logic a
+forall a x. Generic a =&gt; Rep a x -&gt; a
+forall x. Rep (Logic a) x -&gt; Logic a
+</span><span class="hs-identifier hs-var">to</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Proxy (Rep a) -&gt; State -&gt; Rep (Logic a) Any -&gt; Rep (Logic a) Any
+forall p.
+Proxy (Rep a) -&gt; State -&gt; Rep (Logic a) p -&gt; Rep (Logic a) p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+Proxy f -&gt; State -&gt; f' p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#gwalk"><span class="hs-identifier hs-var">gwalk</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679168530"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679168744"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic a -&gt; Rep (Logic a) Any
+forall a x. Generic a =&gt; a -&gt; Rep a x
+forall x. Logic a -&gt; Rep (Logic a) x
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168745"><span class="hs-identifier hs-var">term</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><span class="hs-comment">-- | The generic implementation of 'walk'.</span></span><span>
+</span><span id="line-142"></span><span class="annot"><a href="Kanren.GenericLogical.html#genericOccursCheck"><span class="hs-identifier hs-type">genericOccursCheck</span></a></span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679168533"><span class="annot"><a href="#local-6989586621679168533"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621679168534"><span class="annot"><a href="#local-6989586621679168534"><span class="hs-identifier hs-type">b</span></a></span></span><span>
+</span><span id="line-144"></span><span>   </span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168533"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679168533"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168533"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#VarId"><span class="hs-identifier hs-type">VarId</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168534"><span class="hs-identifier hs-type">b</span></a></span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168533"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-147"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-149"></span><span id="genericOccursCheck"><span class="annot"><span class="annottext">genericOccursCheck :: forall a b.
+(Generic (Logic a), GLogical (Rep a) (Rep (Logic a))) =&gt;
+VarId b -&gt; Logic a -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#genericOccursCheck"><span class="hs-identifier hs-var hs-var">genericOccursCheck</span></a></span></span><span> </span><span id="local-6989586621679168751"><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168751"><span class="hs-identifier hs-var">varId</span></a></span></span><span> </span><span id="local-6989586621679168752"><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168752"><span class="hs-identifier hs-var">term</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Proxy (Rep a) -&gt; VarId b -&gt; Rep (Logic a) Any -&gt; State -&gt; Bool
+forall b p.
+Proxy (Rep a) -&gt; VarId b -&gt; Rep (Logic a) p -&gt; State -&gt; Bool
+forall (f :: * -&gt; *) (f' :: * -&gt; *) b p.
+GLogical f f' =&gt;
+Proxy f -&gt; VarId b -&gt; f' p -&gt; State -&gt; Bool
+</span><a href="Kanren.GenericLogical.html#goccursCheck"><span class="hs-identifier hs-var">goccursCheck</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {k} (t :: k). Proxy t
+forall (t :: * -&gt; *). Proxy t
+</span><span class="hs-identifier hs-var">Proxy</span></span><span> </span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679168533"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VarId b
+</span><a href="#local-6989586621679168751"><span class="hs-identifier hs-var">varId</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic a -&gt; Rep (Logic a) Any
+forall a x. Generic a =&gt; a -&gt; Rep a x
+forall x. Logic a -&gt; Rep (Logic a) x
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168752"><span class="hs-identifier hs-var">term</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="annot"><span class="hs-comment">-- | The generic implementation of 'inject'.</span></span><span>
+</span><span id="line-152"></span><span id="local-6989586621679168537"><span class="annot"><a href="Kanren.GenericLogical.html#genericInject"><span class="hs-identifier hs-type">genericInject</span></a></span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679168537"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168537"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679168537"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168537"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-154"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679168537"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168537"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-156"></span><span id="genericInject"><span class="annot"><span class="annottext">genericInject :: forall a.
+(Generic a, Generic (Logic a), GLogical (Rep a) (Rep (Logic a))) =&gt;
+a -&gt; Logic a
+</span><a href="Kanren.GenericLogical.html#genericInject"><span class="hs-identifier hs-var hs-var">genericInject</span></a></span></span><span> </span><span id="local-6989586621679168760"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679168760"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep (Logic a) Any -&gt; Logic a
+forall a x. Generic a =&gt; Rep a x -&gt; a
+forall x. Rep (Logic a) x -&gt; Logic a
+</span><span class="hs-identifier hs-var">to</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rep a Any -&gt; Rep (Logic a) Any
+forall p. Rep a p -&gt; Rep (Logic a) p
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p. GLogical f f' =&gt; f p -&gt; f' p
+</span><a href="Kanren.GenericLogical.html#ginject"><span class="hs-identifier hs-var">ginject</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Rep a Any
+forall x. a -&gt; Rep a x
+forall a x. Generic a =&gt; a -&gt; Rep a x
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679168760"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span class="annot"><span class="hs-comment">-- | The generic implementation of 'extract'.</span></span><span>
+</span><span id="line-159"></span><span id="local-6989586621679168539"><span class="annot"><a href="Kanren.GenericLogical.html#genericExtract"><span class="hs-identifier hs-type">genericExtract</span></a></span><span>
+</span><span id="line-160"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="annot"><a href="#local-6989586621679168539"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Generic</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168539"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.GenericLogical.html#GLogical"><span class="hs-identifier hs-type">GLogical</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="annot"><a href="#local-6989586621679168539"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Rep</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168539"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679168539"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679168539"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-163"></span><span id="genericExtract"><span class="annot"><span class="annottext">genericExtract :: forall a.
+(Generic a, Generic (Logic a), GLogical (Rep a) (Rep (Logic a))) =&gt;
+Logic a -&gt; Maybe a
+</span><a href="Kanren.GenericLogical.html#genericExtract"><span class="hs-identifier hs-var hs-var">genericExtract</span></a></span></span><span> </span><span id="local-6989586621679168769"><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168769"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Rep a Any -&gt; a
+forall a x. Generic a =&gt; Rep a x -&gt; a
+forall x. Rep a x -&gt; a
+</span><span class="hs-identifier hs-var">to</span></span><span> </span><span class="annot"><span class="annottext">(Rep a Any -&gt; a) -&gt; Maybe (Rep a Any) -&gt; Maybe a
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Rep (Logic a) Any -&gt; Maybe (Rep a Any)
+forall p. Rep (Logic a) p -&gt; Maybe (Rep a p)
+forall (f :: * -&gt; *) (f' :: * -&gt; *) p.
+GLogical f f' =&gt;
+f' p -&gt; Maybe (f p)
+</span><a href="Kanren.GenericLogical.html#gextract"><span class="hs-identifier hs-var">gextract</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic a -&gt; Rep (Logic a) Any
+forall a x. Generic a =&gt; a -&gt; Rep a x
+forall x. Logic a -&gt; Rep (Logic a) x
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679168769"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-164"></span></pre></body></html>

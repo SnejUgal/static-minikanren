@@ -1,0 +1,573 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE LambdaCase #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wno-redundant-constraints #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- | The @matche@ for Haskell. Comes in non-exhaustive and, most importantly,</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- exhaustive versions.</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Kanren.Match</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-8"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Non-exhaustive pattern matching</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-comment">-- | Pattern matching in this library syntactially looks similar to the one</span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-comment">-- from the @total@ package and is based on 'Prism's, though the mechanics</span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-comment">-- differ. Let's take a look at an example.</span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-comment">-- &gt; data Expr</span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-comment">-- &gt;   = Variable String</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-comment">-- &gt;   | Abstraction String Expr</span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-comment">-- &gt;   | Apply Expr Expr</span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-comment">-- &gt;   deriving (Generic)</span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-comment">-- &gt; makeLogic ''Expr</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-comment">-- &gt; makePrisms ''LogicExpr</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-comment">-- &gt;</span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-comment">-- &gt; expro :: Term Expr -&gt; Goal ()</span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-comment">-- &gt; expro = matche</span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on _LogicVariable (\_var -&gt; return ())</span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on _LogicAbstraction (\(_var, body) -&gt; expro body)</span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-comment">-- After defining our data type, we derived its logic type using</span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-comment">-- 'TH.makeLogic', and then generated prisms for the logic type using</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-comment">-- 'Control.Lens.TH.makePrisms' from the @lens@ package. The prisms are</span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-comment">-- crucial to enable pattern matching.</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-comment">-- Two functions are used for pattern matching: 'matche' and 'on'. They are</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-comment">-- composed using 'Data.Function.&amp;' so that the code looks similar to</span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-comment">-- the built-in @case@ expression.</span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-comment">-- At the very top, we use 'matche'. Then, for every case we want to consider,</span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-comment">-- we use 'on' and provide a prism &#8212; the left-hand side of the arm &#8212; and a</span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-comment">-- function &#8212; the right-hand side of the arm. If the value matches the</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-comment">-- pattern, the function is applied to the data stored inside the variant.</span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-comment">-- When pattern-matching on a term, every arm will be tried. Results from each</span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-comment">-- arm will be combined using 'disj'unction. This is just like how @matche@</span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-comment">-- from @faster-minikanren@ behaves.</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-comment">-- &gt;&gt;&gt; mapM_ print (take 3 (run expro))</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-comment">-- Value (LogicVariable (Var (VarId 1)))</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-comment">-- Value (LogicAbstraction (Var (VarId 1)) (Value (LogicVariable (..))))</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-comment">-- Value (LogicAbstraction (Var (VarId 1)) (Value (LogicAbstraction ...)))</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-comment">-- &gt;&gt;&gt; run (\() -&gt; expro (inject' (Variable &quot;foo&quot;)))</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-comment">-- [()]</span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-comment">-- &gt;&gt;&gt; run (\() -&gt; expro (inject' (Apply (Variable &quot;f&quot;) (Variable &quot;x&quot;))))</span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-comment">-- []</span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-comment">-- (note that @expro@ deliberately doesn't include a case for @Apply@.)</span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-comment">-- How does this actually work? Remember that 'Data.Function.&amp;' just</span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-comment">-- swaps the function and its argument, so @expro@ is equivalent to</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-comment">-- &gt; on _LogicAbstraction (\(_var, body) -&gt; expro body)</span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-comment">-- &gt;    (on _LogicVariable (\_var -&gt; return ())</span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-comment">-- &gt;        matche)</span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-comment">-- One can now clearly see that 'on' takes a third argument in which other</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-comment">-- cases are considered. It takes a forth argument too &#8212; the value to match</span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-comment">-- on. When you provide that value, 'on' will try to match it with the given</span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-comment">-- pattern, and apply the given function if possible. 'on' will also apply</span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-comment">-- this value to the remaning cases and take a 'disj'unction. The 'matche'</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-comment">-- at the end is just @const failo@.</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-comment">-- Since 'on' is expected to be used with 'Data.Function.&amp;', it will take</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-comment">-- special care to test cases in the order they will appear in the source</span><span>
+</span><span id="line-73"></span><span>  </span><span class="hs-comment">-- code. This means that you can list cases in the natural order from</span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-comment">-- simple on the top to complex on the bottom and the code will work as</span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-comment">-- expected.</span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-comment">-- 'on' and 'matche' together make for non-exhaustive pattern matching. As you</span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-comment">-- have already seen, @expro@ in the above examples misses a branch for the</span><span>
+</span><span id="line-79"></span><span>  </span><span class="hs-comment">-- @Apply@. This is perfectly safe, since non-handled variants will just lead</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-comment">-- to contradiction. However, it may be desirable to perform an exhaustive</span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-comment">-- pattern matching &#8212; see [the next section](#g:exhaustive) for that.</span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-comment">-- Non-exhaustive pattern matching also lets you consider the same variant</span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-comment">-- twice or more. The results will be combined in the usual way.</span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-comment">--   extract' &lt;$&gt; run (matche</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-comment">--     &amp; on _LogicVariable (\x -&gt; x === inject' &quot;x&quot;)</span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-comment">--     &amp; on _LogicVariable (\x -&gt; x === inject' &quot;y&quot;))</span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-comment">-- :}</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-comment">-- [Just (Variable &quot;x&quot;),Just (Variable &quot;y&quot;)]</span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-93"></span><span>  </span><span class="hs-comment">-- If a variant contains just a single field, it is possible to perform nested</span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-comment">-- pattern matching. All it takes is to compose two prisms with '_Value' in</span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-comment">-- between:</span><span>
+</span><span id="line-96"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-comment">--   extract' &lt;$&gt; run (matche</span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-comment">--     &amp; on (_LogicLeft . _Value . _LogicVariable) (\x -&gt; x === inject' &quot;x&quot;)</span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-comment">--     &amp; on (_LogicRight . _Value . _LogicVariable) (\x -&gt; x === inject' &quot;y&quot;))</span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-comment">-- :}</span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-comment">-- [Just (Left (Variable &quot;x&quot;)),Just (Right (Variable &quot;y&quot;))]</span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-comment">-- The '_Value' here is just the glue between the focus of the left prism,</span><span>
+</span><span id="line-105"></span><span>  </span><span class="hs-comment">-- which is a @'Term' a@, and the source of the right prism, which is a</span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-comment">-- @'Logic' a@.</span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-comment">-- Note that in the very first example, @expro@ is a function with one</span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-comment">-- parameter, but its equation does not include it on the left side. That's</span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-comment">-- because the whole @matche &amp; ...@ expression is a function, and this is nice</span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-comment">-- when you want to match on the last parameter in the relation. If this is</span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-comment">-- not applicable in your case, you might want to use the following syntax:</span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span>  </span><span class="hs-comment">-- &gt; x &amp; (matche</span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on ...)</span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-117"></span><span>  </span><span class="hs-comment">-- Finally, the @&quot;LogicalBase&quot;@ module, which provides 'Logical' instances for</span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-comment">-- @base@ types, also provides prisms for their logical representations for</span><span>
+</span><span id="line-119"></span><span>  </span><span class="hs-comment">-- the purposes of pattern matching.</span><span>
+</span><span id="line-120"></span><span>  </span><span class="annot"><a href="Kanren.Match.html#on"><span class="hs-identifier">on</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-121"></span><span>  </span><span class="annot"><a href="Kanren.Match.html#matche"><span class="hs-identifier">matche</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-122"></span><span>  </span><span class="annot"><a href="Kanren.Match.html#_Value"><span class="hs-identifier">_Value</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Exhaustive pattern matching #exhaustive#</span></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-comment">-- | While lispers may be fine with pattern matching as described in the</span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-comment">-- previous section, we haskellers love exhaustive pattern matching, and it</span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-comment">-- would be sad if we'd have to give up on it when writing relational programs</span><span>
+</span><span id="line-129"></span><span>  </span><span class="hs-comment">-- in Haskell. So this module also provides a variation on pattern matching</span><span>
+</span><span id="line-130"></span><span>  </span><span class="hs-comment">-- with compile-time exhaustiveness check. It looks quite similar to the</span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-comment">-- non-exhaustive version:</span><span>
+</span><span id="line-132"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-comment">-- &gt; expro' :: Term Expr -&gt; Goal ()</span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-comment">-- &gt; expro' = matche'</span><span>
+</span><span id="line-135"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicVariable' (\_var -&gt; return ())</span><span>
+</span><span id="line-136"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicAbstraction' (\(_var, body) -&gt; expro body)</span><span>
+</span><span id="line-137"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicApply' (\(function, argument) -&gt; do</span><span>
+</span><span id="line-138"></span><span>  </span><span class="hs-comment">-- &gt;       expro function</span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-comment">-- &gt;       expro argument)</span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; enter'</span><span>
+</span><span id="line-141"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-142"></span><span>  </span><span class="hs-comment">-- 'matche' becomes 'matche'', 'on' becomes 'on'', and 'enter'' comes on the</span><span>
+</span><span id="line-143"></span><span>  </span><span class="hs-comment">-- scene. We also need to use a bit different prisms, which get an apostrophe</span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-comment">-- at the end as well. For now we'll just assume that we already have them:</span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-comment">-- &gt;&gt;&gt; mapM_ print (take 3 (run expro'))</span><span>
+</span><span id="line-147"></span><span>  </span><span class="hs-comment">-- Value (LogicVariable ...)</span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-comment">-- Value (LogicApply ...)</span><span>
+</span><span id="line-149"></span><span>  </span><span class="hs-comment">-- Value (LogicAbstraction ...)</span><span>
+</span><span id="line-150"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-151"></span><span>  </span><span class="hs-comment">-- This works, but we are more interested in the case when we forgot a case</span><span>
+</span><span id="line-152"></span><span>  </span><span class="hs-comment">-- and would like to get a compile-time error.</span><span>
+</span><span id="line-153"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-154"></span><span>  </span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><span id="line-155"></span><span>  </span><span class="hs-comment">--   run (matche'</span><span>
+</span><span id="line-156"></span><span>  </span><span class="hs-comment">--     &amp; on' _LogicVariable' (\_var -&gt; return ())</span><span>
+</span><span id="line-157"></span><span>  </span><span class="hs-comment">--     &amp; on' _LogicAbstraction' (\(_var, body) -&gt; expro body)</span><span>
+</span><span id="line-158"></span><span>  </span><span class="hs-comment">--     &amp; enter')</span><span>
+</span><span id="line-159"></span><span>  </span><span class="hs-comment">-- :}</span><span>
+</span><span id="line-160"></span><span>  </span><span class="hs-comment">-- &lt;interactive&gt;:2:6: error: [GHC-39999]</span><span>
+</span><span id="line-161"></span><span>  </span><span class="hs-comment">--  &#8226; Ambiguous type variable &#8216;ap0&#8217; arising from a use of &#8216;matche'&#8217;</span><span>
+</span><span id="line-162"></span><span>  </span><span class="hs-comment">--    prevents the constraint &#8216;(Exhausted ap0)&#8217; from being solved.</span><span>
+</span><span id="line-163"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-164"></span><span>  </span><span class="hs-comment">-- Indeed, our program fails to compile with an error so easy to understand</span><span>
+</span><span id="line-165"></span><span>  </span><span class="hs-comment">-- we'll spend the next few paragraphs explaining it.</span><span>
+</span><span id="line-166"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-167"></span><span>  </span><span class="hs-comment">-- The magic that allows us to perform the exhaustiveness check is in the new</span><span>
+</span><span id="line-168"></span><span>  </span><span class="hs-comment">-- prisms. In general, their type signature is</span><span>
+</span><span id="line-169"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-170"></span><span>  </span><span class="hs-comment">-- &gt; Prism (Tagged (&#8230;, c , &#8230;) (Logic a))</span><span>
+</span><span id="line-171"></span><span>  </span><span class="hs-comment">-- &gt;       (Tagged (&#8230;, c', &#8230;) (Logic a))</span><span>
+</span><span id="line-172"></span><span>  </span><span class="hs-comment">-- &gt;       (Tagged c  b)</span><span>
+</span><span id="line-173"></span><span>  </span><span class="hs-comment">-- &gt;       (Tagged c' b)</span><span>
+</span><span id="line-174"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-175"></span><span>  </span><span class="hs-comment">-- The source type is now 'Tagged' with a tuple that contains a variable for</span><span>
+</span><span id="line-176"></span><span>  </span><span class="hs-comment">-- each variant of the type. The focus is also 'Tagged' with the variable for</span><span>
+</span><span id="line-177"></span><span>  </span><span class="hs-comment">-- the variant that this prism focuses on. Take a look at @_LogicVariable'@:</span><span>
+</span><span id="line-178"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-179"></span><span>  </span><span class="hs-comment">-- &gt; _LogicVariable' :: Prism</span><span>
+</span><span id="line-180"></span><span>  </span><span class="hs-comment">-- &gt;   (Tagged (v , ab, ap) LogicExpr)</span><span>
+</span><span id="line-181"></span><span>  </span><span class="hs-comment">-- &gt;   (Tagged (v', ab, ap) LogicExpr)</span><span>
+</span><span id="line-182"></span><span>  </span><span class="hs-comment">-- &gt;   (Tagged v  (Term String))</span><span>
+</span><span id="line-183"></span><span>  </span><span class="hs-comment">-- &gt;   (Tagged v' (Term String))</span><span>
+</span><span id="line-184"></span><span>  </span><span class="hs-comment">-- &gt; _LogicVariable' = from _Tagged . _LogicVariable . _Tagged</span><span>
+</span><span id="line-185"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-186"></span><span>  </span><span class="hs-comment">-- These new prisms are easily implemented using regular prisms and the</span><span>
+</span><span id="line-187"></span><span>  </span><span class="hs-comment">-- '_Tagged' isomorphism (provided by this module). It should be possible to</span><span>
+</span><span id="line-188"></span><span>  </span><span class="hs-comment">-- generate them automatically, but this is not implemented yet.</span><span>
+</span><span id="line-189"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-190"></span><span>  </span><span class="hs-comment">-- In its type signature, 'on'' instantiates the type variable @c@ to</span><span>
+</span><span id="line-191"></span><span>  </span><span class="hs-comment">-- @Remaining@ and @c'@ to @Checked@. The @Checked@ tag will be passed on to</span><span>
+</span><span id="line-192"></span><span>  </span><span class="hs-comment">-- the remaining cases (and @Remaining will propagate back to previous cases).</span><span>
+</span><span id="line-193"></span><span>  </span><span class="hs-comment">-- Therefore, the type checker will infer the following tags for each case</span><span>
+</span><span id="line-194"></span><span>  </span><span class="hs-comment">-- (remember that 'Data.Function.&amp;' is reverse application, so the</span><span>
+</span><span id="line-195"></span><span>  </span><span class="hs-comment">-- exhaustiveness check happens bottom-up):</span><span>
+</span><span id="line-196"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-197"></span><span>  </span><span class="hs-comment">-- &gt; matche'</span><span>
+</span><span id="line-198"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicVariable' &#8230;    -- (  Checked,   Checked, Checked)</span><span>
+</span><span id="line-199"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicAbstraction' &#8230; -- (Remaining,   Checked, Checked)</span><span>
+</span><span id="line-200"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicApply' &#8230;       -- (Remaining, Remaining, Checked)</span><span>
+</span><span id="line-201"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; enter'</span><span>
+</span><span id="line-202"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-203"></span><span>  </span><span class="hs-comment">-- Now, the job of 'matche'' now is to check that the tags it receives are all</span><span>
+</span><span id="line-204"></span><span>  </span><span class="hs-comment">-- @Checked@. This is done using the private @Exhausted@ type class. It has</span><span>
+</span><span id="line-205"></span><span>  </span><span class="hs-comment">-- instances for @Checked@ and tuples consisting of @Exhausted@ types.</span><span>
+</span><span id="line-206"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-207"></span><span>  </span><span class="hs-comment">-- While these tags are nice, they need to come from somewhere, but 'Term's</span><span>
+</span><span id="line-208"></span><span>  </span><span class="hs-comment">-- don't have them. To solve this problem, we introduce 'enter'' which</span><span>
+</span><span id="line-209"></span><span>  </span><span class="hs-comment">-- attaches tags to the term being matched. The 'enter'' has to be put below</span><span>
+</span><span id="line-210"></span><span>  </span><span class="hs-comment">-- all cases.</span><span>
+</span><span id="line-211"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-212"></span><span>  </span><span class="hs-comment">-- The question now is, what happens when we miss a case? For the forgotten</span><span>
+</span><span id="line-213"></span><span>  </span><span class="hs-comment">-- variant, the type checker will not be able to infer the concrete tag.</span><span>
+</span><span id="line-214"></span><span>  </span><span class="hs-comment">-- When the tags arrive at 'matche'', the type checker will check for the</span><span>
+</span><span id="line-215"></span><span>  </span><span class="hs-comment">-- @Exhausted@ constraint and fail, because it does not know if this</span><span>
+</span><span id="line-216"></span><span>  </span><span class="hs-comment">-- constraint is satisfied for the unsolved type variable. Hence the compiler</span><span>
+</span><span id="line-217"></span><span>  </span><span class="hs-comment">-- error we saw previously.</span><span>
+</span><span id="line-218"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-219"></span><span>  </span><span class="hs-comment">-- &gt; matche'</span><span>
+</span><span id="line-220"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicVariable' &#8230;    -- (  Checked,   Checked, ap)</span><span>
+</span><span id="line-221"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicAbstraction' &#8230; -- (Remaining,   Checked, ap)</span><span>
+</span><span id="line-222"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; enter'                   -- (Remaining, Remaining, ap)</span><span>
+</span><span id="line-223"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-224"></span><span>  </span><span class="hs-comment">-- The exhaustive version of pattern matching also support nested patterns.</span><span>
+</span><span id="line-225"></span><span>  </span><span class="hs-comment">-- Just like with non-exhaustive pattern matching, two prisms need to composed</span><span>
+</span><span id="line-226"></span><span>  </span><span class="hs-comment">-- with '_Value'' in between.</span><span>
+</span><span id="line-227"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-228"></span><span>  </span><span class="hs-comment">-- &gt; matche'</span><span>
+</span><span id="line-229"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicLeft' (\x -&gt; x === Value False)</span><span>
+</span><span id="line-230"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicRight' . _Value' . _LogicJust' (\x -&gt; x === Value 42)</span><span>
+</span><span id="line-231"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; on' _LogicRight' . _Value' . _LogicNothing' (\() -&gt; failo)</span><span>
+</span><span id="line-232"></span><span>  </span><span class="hs-comment">-- &gt;   &amp; enter'</span><span>
+</span><span id="line-233"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-234"></span><span>  </span><span class="hs-comment">-- In this example, the tags will have the form @(left, (nothing, just))@. You</span><span>
+</span><span id="line-235"></span><span>  </span><span class="hs-comment">-- don't need to use nested patterns, but if you do, you have to enumerate all</span><span>
+</span><span id="line-236"></span><span>  </span><span class="hs-comment">-- possible subcases as well. This works nicely with recursive types too.</span><span>
+</span><span id="line-237"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-238"></span><span>  </span><span class="hs-comment">-- Unlike non-exhaustive pattern matching, the exhaustive version explicitly</span><span>
+</span><span id="line-239"></span><span>  </span><span class="hs-comment">-- disallows visiting the same variant twice. Although checking an already</span><span>
+</span><span id="line-240"></span><span>  </span><span class="hs-comment">-- checked case wouldn't hurt, it doesn't play nicely with nested patterns.</span><span>
+</span><span id="line-241"></span><span>  </span><span class="hs-comment">--</span><span>
+</span><span id="line-242"></span><span>  </span><span class="hs-comment">-- The @&quot;LogicalBase&quot;@ provides prisms for exhaustive pattern matching too.</span><span>
+</span><span id="line-243"></span><span>  </span><span class="annot"><a href="Kanren.Match.html#enter%27"><span class="hs-identifier">enter'</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-244"></span><span>  </span><span class="annot"><a href="Kanren.Match.html#on%27"><span class="hs-identifier">on'</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-245"></span><span>  </span><span class="annot"><a href="Kanren.Match.html#matche%27"><span class="hs-identifier">matche'</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-246"></span><span>  </span><span class="annot"><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier">_Tagged</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-247"></span><span>  </span><span class="annot"><a href="Kanren.Match.html#_Value%27"><span class="hs-identifier">_Value'</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-248"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-249"></span><span>
+</span><span id="line-250"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Lens</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Iso</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Prism</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Prism'</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">from</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">iso</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">prism'</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">review</span></span><span class="hs-special">,</span><span>
+</span><span id="line-251"></span><span>                               </span><span class="annot"><span class="hs-identifier">reviewing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-252"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Tagged</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Tagged</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Tagged</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">unTagged</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-253"></span><span>
+</span><span id="line-254"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Kanren.Core.html"><span class="hs-identifier">Kanren.Core</span></a></span><span>
+</span><span id="line-255"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Kanren.Goal.html"><span class="hs-identifier">Kanren.Goal</span></a></span><span>
+</span><span id="line-256"></span><span>
+</span><span id="line-257"></span><span class="hs-comment">-- | One case for non-exhaustive pattern matching.</span><span>
+</span><span id="line-258"></span><span class="hs-comment">--</span><span>
+</span><span id="line-259"></span><span class="hs-comment">-- Although we try to match on a 'Term', the prism only need to operate on</span><span>
+</span><span id="line-260"></span><span class="hs-comment">-- a 'Logic' type.</span><span>
+</span><span id="line-261"></span><span class="hs-comment">--</span><span>
+</span><span id="line-262"></span><span class="hs-comment">-- In case when the value being match is unknown yet, 'on' must be able to</span><span>
+</span><span id="line-263"></span><span class="hs-comment">-- construct this value from the pattern &#8212; hence the @'Fresh' v@ constraint. It</span><span>
+</span><span id="line-264"></span><span class="hs-comment">-- should just work though since 'Fresh' has instances for tuples, and prisms'</span><span>
+</span><span id="line-265"></span><span class="hs-comment">-- foci are tuples too.</span><span>
+</span><span id="line-266"></span><span id="local-6989586621679169465"><span id="local-6989586621679169467"><span id="local-6989586621679169471"><span class="annot"><a href="Kanren.Match.html#on"><span class="hs-identifier hs-type">on</span></a></span><span>
+</span><span id="line-267"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logical"><span class="hs-identifier hs-type">Logical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169465"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Fresh"><span class="hs-identifier hs-type">Fresh</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169467"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-268"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Prism'</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169465"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679169467"><span class="hs-identifier hs-type">v</span></a></span><span>
+</span><span id="line-269"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ The pattern</span></span><span>
+</span><span id="line-270"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679169467"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169471"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-271"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ The handler</span></span><span>
+</span><span id="line-272"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169465"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169471"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-273"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Remaining cases</span></span><span>
+</span><span id="line-274"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169465"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-275"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Value being matched</span></span><span>
+</span><span id="line-276"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169471"><span class="hs-identifier hs-type">x</span></a></span></span></span></span><span>
+</span><span id="line-277"></span><span id="on"><span class="annot"><span class="annottext">on :: forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var hs-var">on</span></a></span></span><span> </span><span id="local-6989586621679169652"><span class="annot"><span class="annottext">Prism' (Logic a) v
+</span><a href="#local-6989586621679169652"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679169653"><span class="annot"><span class="annottext">v -&gt; Goal x
+</span><a href="#local-6989586621679169653"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679169654"><span class="annot"><span class="annottext">Term a -&gt; Goal x
+</span><a href="#local-6989586621679169654"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679169655"><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679169655"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Goal x -&gt; Goal x -&gt; Goal x
+forall x. Goal x -&gt; Goal x -&gt; Goal x
+</span><a href="Kanren.Goal.html#disj"><span class="hs-identifier hs-var">disj</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term a -&gt; Goal x
+</span><a href="#local-6989586621679169654"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679169655"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Goal x -&gt; Goal x) -&gt; Goal x -&gt; Goal x
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-278"></span><span>  </span><span id="local-6989586621679169656"><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621679169656"><span class="hs-identifier hs-var">vars</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal v
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-279"></span><span>  </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679169655"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Term a -&gt; Term a -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic a -&gt; Term a
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AReview (Logic a) v -&gt; v -&gt; Logic a
+forall b (m :: * -&gt; *) t. MonadReader b m =&gt; AReview t b -&gt; m t
+</span><span class="hs-identifier hs-var">review</span></span><span> </span><span class="annot"><span class="annottext">AReview (Logic a) v
+Prism' (Logic a) v
+</span><a href="#local-6989586621679169652"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621679169656"><span class="hs-identifier hs-var">vars</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-280"></span><span>  </span><span class="annot"><span class="annottext">v -&gt; Goal x
+</span><a href="#local-6989586621679169653"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621679169656"><span class="hs-identifier hs-var">vars</span></a></span><span>
+</span><span id="line-281"></span><span>
+</span><span id="line-282"></span><span class="annot"><span class="hs-comment">-- | Finalize non-exhaustive pattern matching.</span></span><span>
+</span><span id="line-283"></span><span id="local-6989586621679169496"><span id="local-6989586621679169497"><span class="annot"><a href="Kanren.Match.html#matche"><span class="hs-identifier hs-type">matche</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169496"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169497"><span class="hs-identifier hs-type">x</span></a></span></span></span><span>
+</span><span id="line-284"></span><span id="matche"><span class="annot"><span class="annottext">matche :: forall a x. Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#matche"><span class="hs-identifier hs-var hs-var">matche</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Goal x -&gt; Term a -&gt; Goal x
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Goal x
+forall x. Goal x
+</span><a href="Kanren.Goal.html#failo"><span class="hs-identifier hs-var">failo</span></a></span><span>
+</span><span id="line-285"></span><span>
+</span><span id="line-286"></span><span class="hs-comment">-- | Focus on the logical value inside a term.</span><span>
+</span><span id="line-287"></span><span class="hs-comment">--</span><span>
+</span><span id="line-288"></span><span class="hs-comment">-- This prism aids nested pattern matching. You might expect that, since</span><span>
+</span><span id="line-289"></span><span class="hs-comment">-- regular prisms can be easily composed, say</span><span>
+</span><span id="line-290"></span><span class="hs-comment">-- @'Control.Lens.Prism._Just' . 'Control.Lens.Prism._Left'@, then</span><span>
+</span><span id="line-291"></span><span class="hs-comment">-- @'LogicalBase._LogicJust' . 'Logicalbase._LogicLeft'@ should also work.</span><span>
+</span><span id="line-292"></span><span class="hs-comment">-- However, this is not the case since the types are slightly different:</span><span>
+</span><span id="line-293"></span><span class="hs-comment">--</span><span>
+</span><span id="line-294"></span><span class="hs-comment">-- &gt; _LogicJust :: Prism' (Logic (Maybe (Either a b))) (Term (Either a b))</span><span>
+</span><span id="line-295"></span><span class="hs-comment">-- &gt; _LogicLeft :: Prism'                             (Logic (Either a b)) (Term a)</span><span>
+</span><span id="line-296"></span><span class="hs-comment">--</span><span>
+</span><span id="line-297"></span><span class="hs-comment">-- Hence, we need one more prism between 'LogicalBase._LogicJust' and</span><span>
+</span><span id="line-298"></span><span class="hs-comment">-- 'LogicalBase._LogicLeft' for the types to match. This prism is '_Value'.</span><span>
+</span><span id="line-299"></span><span id="local-6989586621679169505"><span class="annot"><a href="Kanren.Match.html#_Value"><span class="hs-identifier hs-type">_Value</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Prism'</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169505"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169505"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-300"></span><span id="_Value"><span class="annot"><span class="annottext">_Value :: forall a (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Logic a) (f (Logic a)) -&gt; p (Term a) (f (Term a))
+</span><a href="Kanren.Match.html#_Value"><span class="hs-identifier hs-var hs-var">_Value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Logic a -&gt; Term a)
+-&gt; (Term a -&gt; Maybe (Logic a))
+-&gt; forall {p :: * -&gt; * -&gt; *} {f :: * -&gt; *}.
+   (Choice p, Applicative f) =&gt;
+   p (Logic a) (f (Logic a)) -&gt; p (Term a) (f (Term a))
+forall b s a. (b -&gt; s) -&gt; (s -&gt; Maybe a) -&gt; Prism s s a b
+</span><span class="hs-identifier hs-var">prism'</span></span><span> </span><span class="annot"><span class="annottext">Logic a -&gt; Term a
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="annot"><span class="annottext">((Term a -&gt; Maybe (Logic a))
+ -&gt; forall {p :: * -&gt; * -&gt; *} {f :: * -&gt; *}.
+    (Choice p, Applicative f) =&gt;
+    p (Logic a) (f (Logic a)) -&gt; p (Term a) (f (Term a)))
+-&gt; (Term a -&gt; Maybe (Logic a))
+-&gt; forall {p :: * -&gt; * -&gt; *} {f :: * -&gt; *}.
+   (Choice p, Applicative f) =&gt;
+   p (Logic a) (f (Logic a)) -&gt; p (Term a) (f (Term a))
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-301"></span><span>  </span><span class="annot"><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span id="local-6989586621679169666"><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679169666"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Logic a -&gt; Maybe (Logic a)
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679169666"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-302"></span><span>  </span><span class="annot"><a href="Kanren.Core.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="annot"><span class="annottext">VarId a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe (Logic a)
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-303"></span><span>
+</span><span id="line-304"></span><span class="hs-keyword">type</span><span> </span><span id="Matched"><span class="annot"><a href="Kanren.Match.html#Matched"><span class="hs-identifier hs-var">Matched</span></a></span></span><span> </span><span id="local-6989586621679169668"><span class="annot"><a href="#local-6989586621679169668"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679169669"><span class="annot"><a href="#local-6989586621679169669"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169668"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169669"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-305"></span><span>
+</span><span id="line-306"></span><span class="hs-keyword">data</span><span> </span><span id="Remaining"><span class="annot"><a href="Kanren.Match.html#Remaining"><span class="hs-identifier hs-var">Remaining</span></a></span></span><span>
+</span><span id="line-307"></span><span class="hs-keyword">data</span><span> </span><span id="Checked"><span class="annot"><a href="Kanren.Match.html#Checked"><span class="hs-identifier hs-var">Checked</span></a></span></span><span>
+</span><span id="line-308"></span><span>
+</span><span id="line-309"></span><span class="hs-keyword">class</span><span> </span><span id="Exhausted"><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-var">Exhausted</span></a></span></span><span> </span><span id="local-6989586621679169519"><span class="annot"><a href="#local-6989586621679169519"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-310"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="Kanren.Match.html#Checked"><span class="hs-identifier hs-type">Checked</span></a></span><span>
+</span><span id="line-311"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679169522"><span id="local-6989586621679169523"><span class="hs-special">(</span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169522"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169523"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679169522"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679169523"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-312"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679169527"><span id="local-6989586621679169528"><span id="local-6989586621679169529"><span class="hs-special">(</span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169527"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169528"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169529"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679169527"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679169528"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679169529"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-313"></span><span class="hs-keyword">instance</span><span>
+</span><span id="line-314"></span><span>  </span><span id="local-6989586621679169534"><span id="local-6989586621679169535"><span id="local-6989586621679169536"><span id="local-6989586621679169537"><span class="hs-special">(</span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169534"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169535"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169536"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169537"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-315"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679169534"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679169535"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679169536"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679169537"><span class="hs-identifier hs-type">d</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-316"></span><span>
+</span><span id="line-317"></span><span class="hs-comment">-- | Begin exhaustive pattern matching by attaching initial tags to the term.</span><span>
+</span><span id="line-318"></span><span class="hs-comment">-- Do keep in mind that these tags do not exist at runtime.</span><span>
+</span><span id="line-319"></span><span id="local-6989586621679169538"><span id="local-6989586621679169539"><span id="local-6989586621679169541"><span class="annot"><a href="Kanren.Match.html#enter%27"><span class="hs-identifier hs-type">enter'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Match.html#Matched"><span class="hs-identifier hs-type">Matched</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169538"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169539"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169541"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169539"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169541"><span class="hs-identifier hs-type">x</span></a></span></span></span></span><span>
+</span><span id="line-320"></span><span id="enter%27"><span class="annot"><span class="annottext">enter' :: forall m a x. (Matched m a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#enter%27"><span class="hs-identifier hs-var hs-var">enter'</span></a></span></span><span> </span><span id="local-6989586621679169684"><span class="annot"><span class="annottext">Matched m a -&gt; Goal x
+</span><a href="#local-6989586621679169684"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Goal x -&gt; Goal x
+forall a. Goal a -&gt; Goal a
+</span><a href="Kanren.Goal.html#delay"><span class="hs-identifier hs-var">delay</span></a></span><span> </span><span class="annot"><span class="annottext">(Goal x -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Matched m a -&gt; Goal x
+</span><a href="#local-6989586621679169684"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Matched m a -&gt; Goal x)
+-&gt; (Term a -&gt; Matched m a) -&gt; Term a -&gt; Goal x
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Term a -&gt; Matched m a
+forall {k} (s :: k) b. b -&gt; Tagged s b
+</span><span class="hs-identifier hs-var">Tagged</span></span><span>
+</span><span id="line-321"></span><span>
+</span><span id="line-322"></span><span class="hs-comment">-- | One case for exhaustive pattern matching.</span><span>
+</span><span id="line-323"></span><span class="hs-comment">--</span><span>
+</span><span id="line-324"></span><span class="hs-comment">-- Exhaustive pattern matching requires special prisms which know of all</span><span>
+</span><span id="line-325"></span><span class="hs-comment">-- possible variants and can mark a variant as checked. See the guide above for</span><span>
+</span><span id="line-326"></span><span class="hs-comment">-- details.</span><span>
+</span><span id="line-327"></span><span class="hs-comment">--</span><span>
+</span><span id="line-328"></span><span class="hs-comment">-- @Remaining@ and @Checked@ are private types on purpose.</span><span>
+</span><span id="line-329"></span><span id="local-6989586621679169552"><span id="local-6989586621679169553"><span id="local-6989586621679169554"><span id="local-6989586621679169555"><span id="local-6989586621679169557"><span class="annot"><a href="Kanren.Match.html#on%27"><span class="hs-identifier hs-type">on'</span></a></span><span>
+</span><span id="line-330"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logical"><span class="hs-identifier hs-type">Logical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169552"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Fresh"><span class="hs-identifier hs-type">Fresh</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169553"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-331"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Prism</span></span><span>
+</span><span id="line-332"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169554"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169552"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-333"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169555"><span class="hs-identifier hs-type">m'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169552"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-334"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="Kanren.Match.html#Remaining"><span class="hs-identifier hs-type">Remaining</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169553"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-335"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="Kanren.Match.html#Checked"><span class="hs-identifier hs-type">Checked</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169553"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-336"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ The pattern, which also participates in the exhaustiveness check</span></span><span>
+</span><span id="line-337"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679169553"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169557"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-338"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ The handler</span></span><span>
+</span><span id="line-339"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Match.html#Matched"><span class="hs-identifier hs-type">Matched</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169555"><span class="hs-identifier hs-type">m'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169552"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169557"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-340"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Remaining cases</span></span><span>
+</span><span id="line-341"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Match.html#Matched"><span class="hs-identifier hs-type">Matched</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169554"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169552"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-342"></span><span>  </span><span class="annot"><span class="hs-comment">-- ^ Value being matched</span></span><span>
+</span><span id="line-343"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169557"><span class="hs-identifier hs-type">x</span></a></span></span></span></span></span></span><span>
+</span><span id="line-344"></span><span id="on%27"><span class="annot"><span class="annottext">on' :: forall a v m m' x.
+(Logical a, Fresh v) =&gt;
+Prism
+  (Tagged m (Logic a))
+  (Tagged m' (Logic a))
+  (Tagged Remaining v)
+  (Tagged Checked v)
+-&gt; (v -&gt; Goal x)
+-&gt; (Matched m' a -&gt; Goal x)
+-&gt; Matched m a
+-&gt; Goal x
+</span><a href="Kanren.Match.html#on%27"><span class="hs-identifier hs-var hs-var">on'</span></a></span></span><span> </span><span id="local-6989586621679169693"><span class="annot"><span class="annottext">Prism
+  (Tagged m (Logic a))
+  (Tagged m' (Logic a))
+  (Tagged Remaining v)
+  (Tagged Checked v)
+</span><a href="#local-6989586621679169693"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679169694"><span class="annot"><span class="annottext">v -&gt; Goal x
+</span><a href="#local-6989586621679169694"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679169695"><span class="annot"><span class="annottext">Matched m' a -&gt; Goal x
+</span><a href="#local-6989586621679169695"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span id="local-6989586621679169696"><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679169696"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Goal x -&gt; Goal x -&gt; Goal x
+forall x. Goal x -&gt; Goal x -&gt; Goal x
+</span><a href="Kanren.Goal.html#disj"><span class="hs-identifier hs-var">disj</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Matched m' a -&gt; Goal x
+</span><a href="#local-6989586621679169695"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term a -&gt; Matched m' a
+forall {k} (s :: k) b. b -&gt; Tagged s b
+</span><span class="hs-identifier hs-var">Tagged</span></span><span> </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679169696"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Goal x -&gt; Goal x) -&gt; Goal x -&gt; Goal x
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-345"></span><span>  </span><span id="local-6989586621679169697"><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621679169697"><span class="hs-identifier hs-var">vars</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal v
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-346"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span id="local-6989586621679169708"><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679169708"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AReview (Tagged m' (Logic a)) (Tagged Checked v)
+-&gt; Tagged Checked v -&gt; Tagged m' (Logic a)
+forall b (m :: * -&gt; *) t. MonadReader b m =&gt; AReview t b -&gt; m t
+</span><span class="hs-identifier hs-var">review</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Optic
+  Tagged
+  Identity
+  (Tagged m (Logic a))
+  (Tagged m' (Logic a))
+  (Tagged Remaining v)
+  (Tagged Checked v)
+-&gt; AReview (Tagged m' (Logic a)) (Tagged Checked v)
+forall (p :: * -&gt; * -&gt; *) (f :: * -&gt; *) s t a b.
+(Bifunctor p, Functor f) =&gt;
+Optic Tagged Identity s t a b -&gt; Optic' p f t b
+</span><span class="hs-identifier hs-var">reviewing</span></span><span> </span><span class="annot"><span class="annottext">Optic
+  Tagged
+  Identity
+  (Tagged m (Logic a))
+  (Tagged m' (Logic a))
+  (Tagged Remaining v)
+  (Tagged Checked v)
+Prism
+  (Tagged m (Logic a))
+  (Tagged m' (Logic a))
+  (Tagged Remaining v)
+  (Tagged Checked v)
+</span><a href="#local-6989586621679169693"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">v -&gt; Tagged Checked v
+forall {k} (s :: k) b. b -&gt; Tagged s b
+</span><span class="hs-identifier hs-var">Tagged</span></span><span> </span><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621679169697"><span class="hs-identifier hs-var">vars</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-347"></span><span>  </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679169696"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Term a -&gt; Term a -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic a -&gt; Term a
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic a
+</span><a href="#local-6989586621679169708"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-348"></span><span>  </span><span class="annot"><span class="annottext">v -&gt; Goal x
+</span><a href="#local-6989586621679169694"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621679169697"><span class="hs-identifier hs-var">vars</span></a></span><span>
+</span><span id="line-349"></span><span>
+</span><span id="line-350"></span><span class="hs-comment">-- | Finalize exhaustive pattern matching.</span><span>
+</span><span id="line-351"></span><span class="hs-comment">--</span><span>
+</span><span id="line-352"></span><span class="hs-comment">-- The @Exhausted m@ constraint checks that @m@ is composed only of @Checked@</span><span>
+</span><span id="line-353"></span><span class="hs-comment">-- tags.</span><span>
+</span><span id="line-354"></span><span class="hs-comment">--</span><span>
+</span><span id="line-355"></span><span class="hs-comment">-- &gt; instance Exhaustive Checked</span><span>
+</span><span id="line-356"></span><span class="hs-comment">-- &gt; instance (Exhaustive a, Exhaustive b) =&gt; Exhaustive (a, b)</span><span>
+</span><span id="line-357"></span><span class="hs-comment">-- &gt; ...</span><span>
+</span><span id="line-358"></span><span id="local-6989586621679169572"><span id="local-6989586621679169573"><span id="local-6989586621679169574"><span class="annot"><a href="Kanren.Match.html#matche%27"><span class="hs-identifier hs-type">matche'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Match.html#Exhausted"><span class="hs-identifier hs-type">Exhausted</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169572"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Match.html#Matched"><span class="hs-identifier hs-type">Matched</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169572"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169573"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169574"><span class="hs-identifier hs-type">x</span></a></span></span></span></span><span>
+</span><span id="line-359"></span><span id="matche%27"><span class="annot"><span class="annottext">matche' :: forall m a x. Exhausted m =&gt; Matched m a -&gt; Goal x
+</span><a href="Kanren.Match.html#matche%27"><span class="hs-identifier hs-var hs-var">matche'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Goal x -&gt; Matched m a -&gt; Goal x
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Goal x
+forall x. Goal x
+</span><a href="Kanren.Goal.html#failo"><span class="hs-identifier hs-var">failo</span></a></span><span>
+</span><span id="line-360"></span><span>
+</span><span id="line-361"></span><span class="hs-comment">-- | The isomorphism for 'Tagged', useful to implement prisms for exhaustive</span><span>
+</span><span id="line-362"></span><span class="hs-comment">-- pattern matching.</span><span>
+</span><span id="line-363"></span><span class="hs-comment">--</span><span>
+</span><span id="line-364"></span><span class="hs-comment">-- &gt; _LogicJust' :: Prism</span><span>
+</span><span id="line-365"></span><span class="hs-comment">-- &gt;   (Tagged (nothing, just ) (Maybe a ))</span><span>
+</span><span id="line-366"></span><span class="hs-comment">-- &gt;   (Tagged (nothing, just') (Maybe a'))</span><span>
+</span><span id="line-367"></span><span class="hs-comment">-- &gt;   (Tagged just  (Term a ))</span><span>
+</span><span id="line-368"></span><span class="hs-comment">-- &gt;   (Tagged just' (Term a'))</span><span>
+</span><span id="line-369"></span><span class="hs-comment">-- &gt; _LogicJust' = from _Tagged . _LogicJust . _Tagged</span><span>
+</span><span id="line-370"></span><span id="local-6989586621679169581"><span id="local-6989586621679169582"><span id="local-6989586621679169583"><span id="local-6989586621679169584"><span class="annot"><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-type">_Tagged</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Iso</span></span><span> </span><span class="annot"><a href="#local-6989586621679169582"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169584"><span class="hs-identifier hs-type">b'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169581"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169582"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169583"><span class="hs-identifier hs-type">s'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169584"><span class="hs-identifier hs-type">b'</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-371"></span><span id="_Tagged"><span class="annot"><span class="annottext">_Tagged :: forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var hs-var">_Tagged</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(b -&gt; Tagged s b)
+-&gt; (Tagged s' b' -&gt; b') -&gt; Iso b b' (Tagged s b) (Tagged s' b')
+forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
+</span><span class="hs-identifier hs-var">iso</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; Tagged s b
+forall {k} (s :: k) b. b -&gt; Tagged s b
+</span><span class="hs-identifier hs-var">Tagged</span></span><span> </span><span class="annot"><span class="annottext">Tagged s' b' -&gt; b'
+forall {k} (s :: k) b. Tagged s b -&gt; b
+</span><span class="hs-identifier hs-var">unTagged</span></span><span>
+</span><span id="line-372"></span><span>
+</span><span id="line-373"></span><span class="hs-comment">-- | Focus on the logical value inside a term.</span><span>
+</span><span id="line-374"></span><span class="hs-comment">--</span><span>
+</span><span id="line-375"></span><span class="hs-comment">-- This prism serves the same purpose as '_Value', but is adapted for exhaustive</span><span>
+</span><span id="line-376"></span><span class="hs-comment">-- pattern matching.</span><span>
+</span><span id="line-377"></span><span id="local-6989586621679169599"><span id="local-6989586621679169600"><span id="local-6989586621679169601"><span class="annot"><a href="Kanren.Match.html#_Value%27"><span class="hs-identifier hs-type">_Value'</span></a></span><span>
+</span><span id="line-378"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Prism</span></span><span>
+</span><span id="line-379"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169599"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169600"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-380"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169601"><span class="hs-identifier hs-type">m'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169600"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-381"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169599"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169600"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-382"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679169601"><span class="hs-identifier hs-type">m'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logic"><span class="hs-identifier hs-type">Logic</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169600"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-383"></span><span id="_Value%27"><span class="annot"><span class="annottext">_Value' :: forall m a m' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Tagged m (Logic a)) (f (Tagged m' (Logic a)))
+-&gt; p (Tagged m (Term a)) (f (Tagged m' (Term a)))
+</span><a href="Kanren.Match.html#_Value%27"><span class="hs-identifier hs-var hs-var">_Value'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AnIso (Term a) (Term a) (Tagged m' (Term a)) (Tagged m (Term a))
+-&gt; Iso (Tagged m (Term a)) (Tagged m' (Term a)) (Term a) (Term a)
+forall s t a b. AnIso s t a b -&gt; Iso b a t s
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">AnIso (Term a) (Term a) (Tagged m' (Term a)) (Tagged m (Term a))
+forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var">_Tagged</span></a></span><span> </span><span class="annot"><span class="annottext">(p (Term a) (f (Term a))
+ -&gt; p (Tagged m (Term a)) (f (Tagged m' (Term a))))
+-&gt; (p (Tagged m (Logic a)) (f (Tagged m' (Logic a)))
+    -&gt; p (Term a) (f (Term a)))
+-&gt; p (Tagged m (Logic a)) (f (Tagged m' (Logic a)))
+-&gt; p (Tagged m (Term a)) (f (Tagged m' (Term a)))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p (Logic a) (f (Logic a)) -&gt; p (Term a) (f (Term a))
+forall a (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Logic a) (f (Logic a)) -&gt; p (Term a) (f (Term a))
+</span><a href="Kanren.Match.html#_Value"><span class="hs-identifier hs-var">_Value</span></a></span><span> </span><span class="annot"><span class="annottext">(p (Logic a) (f (Logic a)) -&gt; p (Term a) (f (Term a)))
+-&gt; (p (Tagged m (Logic a)) (f (Tagged m' (Logic a)))
+    -&gt; p (Logic a) (f (Logic a)))
+-&gt; p (Tagged m (Logic a)) (f (Tagged m' (Logic a)))
+-&gt; p (Term a) (f (Term a))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p (Tagged m (Logic a)) (f (Tagged m' (Logic a)))
+-&gt; p (Logic a) (f (Logic a))
+forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var">_Tagged</span></a></span><span>
+</span><span id="line-384"></span></pre></body></html>

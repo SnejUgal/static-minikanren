@@ -1,0 +1,327 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE ConstraintKinds #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies #-}</span><span>
+</span><span id="line-7"></span><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Kanren.Example.Tree</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Example.Tree.html#example"><span class="hs-identifier">example</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Lens.TH</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">makePrisms</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&amp;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Core.html"><span class="hs-identifier">Kanren.Core</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Goal.html"><span class="hs-identifier">Kanren.Goal</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.LogicalBase.html"><span class="hs-identifier">Kanren.LogicalBase</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Match.html"><span class="hs-identifier">Kanren.Match</span></a></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.TH.html"><span class="hs-identifier">Kanren.TH</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.TH.html#makeLogic"><span class="hs-identifier">makeLogic</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">data</span><span> </span><span id="Tree"><span class="annot"><a href="Kanren.Example.Tree.html#Tree"><span class="hs-identifier hs-var">Tree</span></a></span></span><span> </span><span id="local-6989586621679172338"><span class="annot"><a href="#local-6989586621679172338"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Empty"><span class="annot"><a href="Kanren.Example.Tree.html#Empty"><span class="hs-identifier hs-var">Empty</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Node"><span class="annot"><a href="Kanren.Example.Tree.html#Node"><span class="hs-identifier hs-var">Node</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621679172338"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Example.Tree.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679172338"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Example.Tree.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679172338"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679172501"><span id="local-6989586621679172508"><span id="local-6989586621679172511"><span class="annot"><span class="annottext">Int -&gt; Tree a -&gt; ShowS
+[Tree a] -&gt; ShowS
+Tree a -&gt; String
+(Int -&gt; Tree a -&gt; ShowS)
+-&gt; (Tree a -&gt; String) -&gt; ([Tree a] -&gt; ShowS) -&gt; Show (Tree a)
+forall a. Show a =&gt; Int -&gt; Tree a -&gt; ShowS
+forall a. Show a =&gt; [Tree a] -&gt; ShowS
+forall a. Show a =&gt; Tree a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; Tree a -&gt; ShowS
+showsPrec :: Int -&gt; Tree a -&gt; ShowS
+$cshow :: forall a. Show a =&gt; Tree a -&gt; String
+show :: Tree a -&gt; String
+$cshowList :: forall a. Show a =&gt; [Tree a] -&gt; ShowS
+showList :: [Tree a] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679172515"><span id="local-6989586621679172517"><span class="annot"><span class="annottext">(forall x. Tree a -&gt; Rep (Tree a) x)
+-&gt; (forall x. Rep (Tree a) x -&gt; Tree a) -&gt; Generic (Tree a)
+forall x. Rep (Tree a) x -&gt; Tree a
+forall x. Tree a -&gt; Rep (Tree a) x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+forall a x. Rep (Tree a) x -&gt; Tree a
+forall a x. Tree a -&gt; Rep (Tree a) x
+$cfrom :: forall a x. Tree a -&gt; Rep (Tree a) x
+from :: forall x. Tree a -&gt; Rep (Tree a) x
+$cto :: forall a x. Rep (Tree a) x -&gt; Tree a
+to :: forall x. Rep (Tree a) x -&gt; Tree a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span id="Logic"><span id="local-6989586621679172338"><span id="LogicTree"><span id="local-6989586621679172521"><span id="local-6989586621679172523"><span id="local-6989586621679172526"><span id="local-6989586621679172532"><span id="local-6989586621679172538"><span id="local-6989586621679172544"><span id="local-6989586621679172551"><span id="LogicEmpty"><span id="LogicNode"><span class="hs-identifier">makeLogic</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Tree</span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-24"></span><span id="local-6989586621679172338"><span id="local-6989586621679172384"><span id="_LogicEmpty"><span id="_LogicNode"><span class="hs-identifier">makePrisms</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">LogicTree</span></span></span></span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="annot"><a href="Kanren.Example.Tree.html#treeo"><span class="hs-identifier hs-type">treeo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Example.Tree.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span id="treeo"><span class="annot"><span class="annottext">treeo :: Term (Tree Int) -&gt; Goal ()
+</span><a href="Kanren.Example.Tree.html#treeo"><span class="hs-identifier hs-var hs-var">treeo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-28"></span><span>  </span><span class="annot"><span class="annottext">Term (Tree Int) -&gt; Goal ()
+forall a x. Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#matche"><span class="hs-identifier hs-var">matche</span></a></span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><span class="annottext">(Term (Tree Int) -&gt; Goal ())
+-&gt; ((Term (Tree Int) -&gt; Goal ()) -&gt; Term (Tree Int) -&gt; Goal ())
+-&gt; Term (Tree Int)
+-&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Prism' (Logic (Tree Int)) ()
+-&gt; (() -&gt; Goal ())
+-&gt; (Term (Tree Int) -&gt; Goal ())
+-&gt; Term (Tree Int)
+-&gt; Goal ()
+forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var">on</span></a></span><span> </span><span class="annot"><span class="annottext">p () (f ()) -&gt; p (Logic (Tree Int)) (f (Logic (Tree Int)))
+p () (f ()) -&gt; p (LogicTree Int) (f (LogicTree Int))
+forall a (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p () (f ()) -&gt; p (LogicTree a) (f (LogicTree a))
+Prism' (Logic (Tree Int)) ()
+</span><a href="Kanren.Example.Tree.html#_LogicEmpty"><span class="hs-identifier hs-var">_LogicEmpty</span></a></span><span> </span><span class="annot"><span class="annottext">() -&gt; Goal ()
+forall a. a -&gt; Goal a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><span class="annottext">(Term (Tree Int) -&gt; Goal ())
+-&gt; ((Term (Tree Int) -&gt; Goal ()) -&gt; Term (Tree Int) -&gt; Goal ())
+-&gt; Term (Tree Int)
+-&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Prism'
+  (Logic (Tree Int)) (Term Int, Term (Tree Int), Term (Tree Int))
+-&gt; ((Term Int, Term (Tree Int), Term (Tree Int)) -&gt; Goal ())
+-&gt; (Term (Tree Int) -&gt; Goal ())
+-&gt; Term (Tree Int)
+-&gt; Goal ()
+forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var">on</span></a></span><span>
+</span><span id="line-31"></span><span>      </span><span class="annot"><span class="annottext">p (Term Int, Term (Tree Int), Term (Tree Int))
+  (f (Term Int, Term (Tree Int), Term (Tree Int)))
+-&gt; p (Logic (Tree Int)) (f (Logic (Tree Int)))
+p (Term Int, Term (Tree Int), Term (Tree Int))
+  (f (Term Int, Term (Tree Int), Term (Tree Int)))
+-&gt; p (LogicTree Int) (f (LogicTree Int))
+forall a a (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Term a, Term (Tree a), Term (Tree a))
+  (f (Term a, Term (Tree a), Term (Tree a)))
+-&gt; p (LogicTree a) (f (LogicTree a))
+Prism'
+  (Logic (Tree Int)) (Term Int, Term (Tree Int), Term (Tree Int))
+</span><a href="Kanren.Example.Tree.html#_LogicNode"><span class="hs-identifier hs-var">_LogicNode</span></a></span><span>
+</span><span id="line-32"></span><span>      </span><span class="hs-special">(</span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679172666"><span class="annot"><span class="annottext">Term Int
+</span><a href="#local-6989586621679172666"><span class="hs-identifier hs-var">value</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679172667"><span class="annot"><span class="annottext">Term (Tree Int)
+</span><a href="#local-6989586621679172667"><span class="hs-identifier hs-var">left</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679172668"><span class="annot"><span class="annottext">Term (Tree Int)
+</span><a href="#local-6989586621679172668"><span class="hs-identifier hs-var">right</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-33"></span><span>          </span><span class="annot"><span class="annottext">Term Int
+</span><a href="#local-6989586621679172666"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Term Int -&gt; Term Int -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Term Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-34"></span><span>          </span><span class="annot"><span class="annottext">Term (Tree Int) -&gt; Goal ()
+</span><a href="Kanren.Example.Tree.html#treeo"><span class="hs-identifier hs-var">treeo</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree Int)
+</span><a href="#local-6989586621679172667"><span class="hs-identifier hs-var">left</span></a></span><span>
+</span><span id="line-35"></span><span>          </span><span class="annot"><span class="annottext">Term (Tree Int) -&gt; Goal ()
+</span><a href="Kanren.Example.Tree.html#treeo"><span class="hs-identifier hs-var">treeo</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree Int)
+</span><a href="#local-6989586621679172668"><span class="hs-identifier hs-var">right</span></a></span><span>
+</span><span id="line-36"></span><span>      </span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span id="local-6989586621679172414"><span class="annot"><a href="Kanren.Example.Tree.html#inverto"><span class="hs-identifier hs-type">inverto</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Logical"><span class="hs-identifier hs-type">Logical</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679172414"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Example.Tree.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679172414"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Example.Tree.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679172414"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-39"></span><span id="inverto"><span class="annot"><span class="annottext">inverto :: forall a. Logical a =&gt; Term (Tree a) -&gt; Term (Tree a) -&gt; Goal ()
+</span><a href="Kanren.Example.Tree.html#inverto"><span class="hs-identifier hs-var hs-var">inverto</span></a></span></span><span> </span><span id="local-6989586621679172686"><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172686"><span class="hs-identifier hs-var">tree</span></a></span></span><span> </span><span id="local-6989586621679172687"><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172687"><span class="hs-identifier hs-var">inverted</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-40"></span><span>  </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172686"><span class="hs-identifier hs-var">tree</span></a></span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><span class="annottext">Term (Tree a) -&gt; (Term (Tree a) -&gt; Goal ()) -&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">Term (Tree a) -&gt; Goal ()
+forall a x. Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#matche"><span class="hs-identifier hs-var">matche</span></a></span><span>
+</span><span id="line-42"></span><span>          </span><span class="annot"><span class="annottext">(Term (Tree a) -&gt; Goal ())
+-&gt; ((Term (Tree a) -&gt; Goal ()) -&gt; Term (Tree a) -&gt; Goal ())
+-&gt; Term (Tree a)
+-&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Prism' (Logic (Tree a)) ()
+-&gt; (() -&gt; Goal ())
+-&gt; (Term (Tree a) -&gt; Goal ())
+-&gt; Term (Tree a)
+-&gt; Goal ()
+forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var">on</span></a></span><span> </span><span class="annot"><span class="annottext">p () (f ()) -&gt; p (Logic (Tree a)) (f (Logic (Tree a)))
+p () (f ()) -&gt; p (LogicTree a) (f (LogicTree a))
+forall a (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p () (f ()) -&gt; p (LogicTree a) (f (LogicTree a))
+Prism' (Logic (Tree a)) ()
+</span><a href="Kanren.Example.Tree.html#_LogicEmpty"><span class="hs-identifier hs-var">_LogicEmpty</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172687"><span class="hs-identifier hs-var">inverted</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree a) -&gt; Term (Tree a) -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic (Tree a) -&gt; Term (Tree a)
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic (Tree a)
+LogicTree a
+forall a. LogicTree a
+</span><a href="Kanren.Example.Tree.html#LogicEmpty"><span class="hs-identifier hs-var">LogicEmpty</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>          </span><span class="annot"><span class="annottext">(Term (Tree a) -&gt; Goal ())
+-&gt; ((Term (Tree a) -&gt; Goal ()) -&gt; Term (Tree a) -&gt; Goal ())
+-&gt; Term (Tree a)
+-&gt; Goal ()
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Prism' (Logic (Tree a)) (Term a, Term (Tree a), Term (Tree a))
+-&gt; ((Term a, Term (Tree a), Term (Tree a)) -&gt; Goal ())
+-&gt; (Term (Tree a) -&gt; Goal ())
+-&gt; Term (Tree a)
+-&gt; Goal ()
+forall a v x.
+(Logical a, Fresh v) =&gt;
+Prism' (Logic a) v
+-&gt; (v -&gt; Goal x) -&gt; (Term a -&gt; Goal x) -&gt; Term a -&gt; Goal x
+</span><a href="Kanren.Match.html#on"><span class="hs-identifier hs-var">on</span></a></span><span>
+</span><span id="line-44"></span><span>            </span><span class="annot"><span class="annottext">p (Term a, Term (Tree a), Term (Tree a))
+  (f (Term a, Term (Tree a), Term (Tree a)))
+-&gt; p (Logic (Tree a)) (f (Logic (Tree a)))
+p (Term a, Term (Tree a), Term (Tree a))
+  (f (Term a, Term (Tree a), Term (Tree a)))
+-&gt; p (LogicTree a) (f (LogicTree a))
+forall a a (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Term a, Term (Tree a), Term (Tree a))
+  (f (Term a, Term (Tree a), Term (Tree a)))
+-&gt; p (LogicTree a) (f (LogicTree a))
+Prism' (Logic (Tree a)) (Term a, Term (Tree a), Term (Tree a))
+</span><a href="Kanren.Example.Tree.html#_LogicNode"><span class="hs-identifier hs-var">_LogicNode</span></a></span><span>
+</span><span id="line-45"></span><span>            </span><span class="hs-special">(</span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679172697"><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679172697"><span class="hs-identifier hs-var">value</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679172698"><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172698"><span class="hs-identifier hs-var">left</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679172699"><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172699"><span class="hs-identifier hs-var">right</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-46"></span><span>                </span><span class="hs-special">(</span><span id="local-6989586621679172700"><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172700"><span class="hs-identifier hs-var">invertedLeft</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679172701"><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172701"><span class="hs-identifier hs-var">invertedRight</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term (Tree a), Term (Tree a))
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-47"></span><span>                </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172687"><span class="hs-identifier hs-var">inverted</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree a) -&gt; Term (Tree a) -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic (Tree a) -&gt; Term (Tree a)
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term a -&gt; Term (Tree a) -&gt; Term (Tree a) -&gt; LogicTree a
+forall a. Term a -&gt; Term (Tree a) -&gt; Term (Tree a) -&gt; LogicTree a
+</span><a href="Kanren.Example.Tree.html#LogicNode"><span class="hs-identifier hs-var">LogicNode</span></a></span><span> </span><span class="annot"><span class="annottext">Term a
+</span><a href="#local-6989586621679172697"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172700"><span class="hs-identifier hs-var">invertedLeft</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172701"><span class="hs-identifier hs-var">invertedRight</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>                </span><span class="annot"><span class="annottext">Term (Tree a) -&gt; Term (Tree a) -&gt; Goal ()
+forall a. Logical a =&gt; Term (Tree a) -&gt; Term (Tree a) -&gt; Goal ()
+</span><a href="Kanren.Example.Tree.html#inverto"><span class="hs-identifier hs-var">inverto</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172698"><span class="hs-identifier hs-var">left</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172701"><span class="hs-identifier hs-var">invertedRight</span></a></span><span>
+</span><span id="line-49"></span><span>                </span><span class="annot"><span class="annottext">Term (Tree a) -&gt; Term (Tree a) -&gt; Goal ()
+forall a. Logical a =&gt; Term (Tree a) -&gt; Term (Tree a) -&gt; Goal ()
+</span><a href="Kanren.Example.Tree.html#inverto"><span class="hs-identifier hs-var">inverto</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172699"><span class="hs-identifier hs-var">right</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree a)
+</span><a href="#local-6989586621679172700"><span class="hs-identifier hs-var">invertedLeft</span></a></span><span>
+</span><span id="line-50"></span><span>            </span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>      </span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">--    4</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--  2   6</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- 1 3 5 7</span><span>
+</span><span id="line-56"></span><span class="annot"><a href="Kanren.Example.Tree.html#exampleTree"><span class="hs-identifier hs-type">exampleTree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Example.Tree.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-57"></span><span id="exampleTree"><span class="annot"><span class="annottext">exampleTree :: Tree Int
+</span><a href="Kanren.Example.Tree.html#exampleTree"><span class="hs-identifier hs-var hs-var">exampleTree</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><span class="annottext">Int -&gt; Tree Int -&gt; Tree Int -&gt; Tree Int
+forall a. a -&gt; Tree a -&gt; Tree a -&gt; Tree a
+</span><a href="Kanren.Example.Tree.html#Node"><span class="hs-identifier hs-var">Node</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Tree Int -&gt; Tree Int -&gt; Tree Int
+forall a. a -&gt; Tree a -&gt; Tree a -&gt; Tree a
+</span><a href="Kanren.Example.Tree.html#Node"><span class="hs-identifier hs-var">Node</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Tree Int
+forall {a}. a -&gt; Tree a
+</span><a href="#local-6989586621679172704"><span class="hs-identifier hs-var">leaf</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Tree Int
+forall {a}. a -&gt; Tree a
+</span><a href="#local-6989586621679172704"><span class="hs-identifier hs-var">leaf</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Tree Int -&gt; Tree Int -&gt; Tree Int
+forall a. a -&gt; Tree a -&gt; Tree a -&gt; Tree a
+</span><a href="Kanren.Example.Tree.html#Node"><span class="hs-identifier hs-var">Node</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">6</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Tree Int
+forall {a}. a -&gt; Tree a
+</span><a href="#local-6989586621679172704"><span class="hs-identifier hs-var">leaf</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">5</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Tree Int
+forall {a}. a -&gt; Tree a
+</span><a href="#local-6989586621679172704"><span class="hs-identifier hs-var">leaf</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">7</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-63"></span><span>  </span><span id="local-6989586621679172704"><span class="annot"><span class="annottext">leaf :: a -&gt; Tree a
+</span><a href="#local-6989586621679172704"><span class="hs-identifier hs-var hs-var">leaf</span></a></span></span><span> </span><span id="local-6989586621679172705"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679172705"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Tree a -&gt; Tree a -&gt; Tree a
+forall a. a -&gt; Tree a -&gt; Tree a -&gt; Tree a
+</span><a href="Kanren.Example.Tree.html#Node"><span class="hs-identifier hs-var">Node</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679172705"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Tree a
+forall a. Tree a
+</span><a href="Kanren.Example.Tree.html#Empty"><span class="hs-identifier hs-var">Empty</span></a></span><span> </span><span class="annot"><span class="annottext">Tree a
+forall a. Tree a
+</span><a href="Kanren.Example.Tree.html#Empty"><span class="hs-identifier hs-var">Empty</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="annot"><a href="Kanren.Example.Tree.html#example"><span class="hs-identifier hs-type">example</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span id="example"><span class="annot"><span class="annottext">example :: IO ()
+</span><a href="Kanren.Example.Tree.html#example"><span class="hs-identifier hs-var hs-var">example</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-67"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;trees:&quot;</span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><span class="annottext">(Maybe (Tree Int) -&gt; IO ()) -&gt; [Maybe (Tree Int)] -&gt; IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">Maybe (Tree Int) -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">([Maybe (Tree Int)] -&gt; IO ()) -&gt; [Maybe (Tree Int)] -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Term (Tree Int) -&gt; Maybe (Tree Int)
+forall a. Logical a =&gt; Term a -&gt; Maybe a
+</span><a href="Kanren.Core.html#extract%27"><span class="hs-identifier hs-var">extract'</span></a></span><span> </span><span class="annot"><span class="annottext">(Term (Tree Int) -&gt; Maybe (Tree Int))
+-&gt; [Term (Tree Int)] -&gt; [Maybe (Tree Int)]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Term (Tree Int)] -&gt; [Term (Tree Int)]
+forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">10</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Term (Tree Int) -&gt; Goal ()) -&gt; [Term (Tree Int)]
+forall v. Fresh v =&gt; (v -&gt; Goal ()) -&gt; [v]
+</span><a href="Kanren.Goal.html#run"><span class="hs-identifier hs-var">run</span></a></span><span> </span><span class="annot"><span class="annottext">Term (Tree Int) -&gt; Goal ()
+</span><a href="Kanren.Example.Tree.html#treeo"><span class="hs-identifier hs-var">treeo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\ninverto example:&quot;</span></span><span>
+</span><span id="line-71"></span><span>  </span><span class="annot"><span class="annottext">(Maybe (Tree Int) -&gt; IO ()) -&gt; [Maybe (Tree Int)] -&gt; IO ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">Maybe (Tree Int) -&gt; IO ()
+forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">([Maybe (Tree Int)] -&gt; IO ()) -&gt; [Maybe (Tree Int)] -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Term (Tree Int) -&gt; Maybe (Tree Int)
+forall a. Logical a =&gt; Term a -&gt; Maybe a
+</span><a href="Kanren.Core.html#extract%27"><span class="hs-identifier hs-var">extract'</span></a></span><span> </span><span class="annot"><span class="annottext">(Term (Tree Int) -&gt; Maybe (Tree Int))
+-&gt; [Term (Tree Int)] -&gt; [Maybe (Tree Int)]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Term (Tree Int) -&gt; Goal ()) -&gt; [Term (Tree Int)]
+forall v. Fresh v =&gt; (v -&gt; Goal ()) -&gt; [v]
+</span><a href="Kanren.Goal.html#run"><span class="hs-identifier hs-var">run</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term (Tree Int) -&gt; Term (Tree Int) -&gt; Goal ()
+forall a. Logical a =&gt; Term (Tree a) -&gt; Term (Tree a) -&gt; Goal ()
+</span><a href="Kanren.Example.Tree.html#inverto"><span class="hs-identifier hs-var">inverto</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Tree Int -&gt; Term (Tree Int)
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="annot"><span class="annottext">Tree Int
+</span><a href="Kanren.Example.Tree.html#exampleTree"><span class="hs-identifier hs-var">exampleTree</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span></pre></body></html>

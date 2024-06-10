@@ -1,0 +1,994 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE ConstraintKinds #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE DeriveAnyClass #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE OverloadedLists #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE StandaloneDeriving #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TemplateHaskell #-}</span><span>
+</span><span id="line-7"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies #-}</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Kanren.Data.Scheme</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-10"></span><span>  </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier">Symbol</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-11"></span><span>  </span><span class="annot"><a href="Kanren.Data.Scheme.html#Env"><span class="hs-identifier">Env</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-12"></span><span>  </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier">SExpr</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-13"></span><span>  </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier">LogicSExpr</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-14"></span><span>  </span><span class="annot"><a href="Kanren.Data.Scheme.html#Value"><span class="hs-identifier">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-15"></span><span>  </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicValue"><span class="hs-identifier">LogicValue</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-16"></span><span>  </span><span class="annot"><a href="Kanren.Data.Scheme.html#evalo"><span class="hs-identifier">evalo</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-17"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Lens</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Prism</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">from</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Lens.TH</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">makePrisms</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Tagged</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Tagged</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IsList</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">IsString</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.IsList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IsList</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Core.html"><span class="hs-identifier">Kanren.Core</span></a></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Goal.html"><span class="hs-identifier">Kanren.Goal</span></a></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.LogicalBase.html"><span class="hs-identifier">Kanren.LogicalBase</span></a></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.Match.html"><span class="hs-identifier">Kanren.Match</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Kanren.TH.html"><span class="hs-identifier">Kanren.TH</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">type</span><span> </span><span id="Symbol"><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-var">Symbol</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Kanren.Core.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">type</span><span> </span><span id="Env"><span class="annot"><a href="Kanren.Data.Scheme.html#Env"><span class="hs-identifier hs-var">Env</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">data</span><span> </span><span id="SExpr"><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-var">SExpr</span></a></span></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="SSymbol"><span class="annot"><a href="Kanren.Data.Scheme.html#SSymbol"><span class="hs-identifier hs-var">SSymbol</span></a></span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="SNil"><span class="annot"><a href="Kanren.Data.Scheme.html#SNil"><span class="hs-identifier hs-var">SNil</span></a></span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="SCons"><span class="annot"><a href="Kanren.Data.Scheme.html#SCons"><span class="hs-identifier hs-var">SCons</span></a></span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679173704"><span id="local-6989586621679173712"><span class="annot"><span class="annottext">SExpr -&gt; SExpr -&gt; Bool
+(SExpr -&gt; SExpr -&gt; Bool) -&gt; (SExpr -&gt; SExpr -&gt; Bool) -&gt; Eq SExpr
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: SExpr -&gt; SExpr -&gt; Bool
+== :: SExpr -&gt; SExpr -&gt; Bool
+$c/= :: SExpr -&gt; SExpr -&gt; Bool
+/= :: SExpr -&gt; SExpr -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679173717"><span id="local-6989586621679173719"><span class="annot"><span class="annottext">(forall x. SExpr -&gt; Rep SExpr x)
+-&gt; (forall x. Rep SExpr x -&gt; SExpr) -&gt; Generic SExpr
+forall x. Rep SExpr x -&gt; SExpr
+forall x. SExpr -&gt; Rep SExpr x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. SExpr -&gt; Rep SExpr x
+from :: forall x. SExpr -&gt; Rep SExpr x
+$cto :: forall x. Rep SExpr x -&gt; SExpr
+to :: forall x. Rep SExpr x -&gt; SExpr
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679173723"><span class="annot"><span class="annottext">SExpr -&gt; ()
+(SExpr -&gt; ()) -&gt; NFData SExpr
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: SExpr -&gt; ()
+rnf :: SExpr -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">data</span><span> </span><span id="Value"><span class="annot"><a href="Kanren.Data.Scheme.html#Value"><span class="hs-identifier hs-var">Value</span></a></span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="SExpr"><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-var">SExpr</span></a></span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Closure"><span class="annot"><a href="Kanren.Data.Scheme.html#Closure"><span class="hs-identifier hs-var">Closure</span></a></span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679173756"><span id="local-6989586621679173764"><span class="annot"><span class="annottext">Value -&gt; Value -&gt; Bool
+(Value -&gt; Value -&gt; Bool) -&gt; (Value -&gt; Value -&gt; Bool) -&gt; Eq Value
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: Value -&gt; Value -&gt; Bool
+== :: Value -&gt; Value -&gt; Bool
+$c/= :: Value -&gt; Value -&gt; Bool
+/= :: Value -&gt; Value -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679173771"><span id="local-6989586621679173773"><span class="annot"><span class="annottext">(forall x. Value -&gt; Rep Value x)
+-&gt; (forall x. Rep Value x -&gt; Value) -&gt; Generic Value
+forall x. Rep Value x -&gt; Value
+forall x. Value -&gt; Rep Value x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. Value -&gt; Rep Value x
+from :: forall x. Value -&gt; Rep Value x
+$cto :: forall x. Rep Value x -&gt; Value
+to :: forall x. Rep Value x -&gt; Value
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679173776"><span class="annot"><span class="annottext">Value -&gt; ()
+(Value -&gt; ()) -&gt; NFData Value
+forall a. (a -&gt; ()) -&gt; NFData a
+$crnf :: Value -&gt; ()
+rnf :: Value -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679173801"><span id="local-6989586621679173805"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-48"></span><span>  </span><span id="local-6989586621679173809"><span class="annot"><span class="annottext">show :: SExpr -&gt; [Char]
+</span><a href="#local-6989586621679173809"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#SSymbol"><span class="hs-identifier hs-type">SSymbol</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span id="local-6989586621679173812"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679173812"><span class="hs-identifier hs-var">symbol</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679173812"><span class="hs-identifier hs-var">symbol</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="Kanren.Data.Scheme.html#SNil"><span class="hs-identifier hs-var">SNil</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;()&quot;</span></span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#SCons"><span class="hs-identifier hs-type">SCons</span></a></span><span> </span><span id="local-6989586621679173813"><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173813"><span class="hs-identifier hs-var">car</span></a></span></span><span> </span><span id="local-6989586621679173814"><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173814"><span class="hs-identifier hs-var">cdr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;(&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173813"><span class="hs-identifier hs-var">car</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; [Char]
+</span><a href="Kanren.Data.Scheme.html#showSList"><span class="hs-identifier hs-var">showSList</span></a></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173814"><span class="hs-identifier hs-var">cdr</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="Kanren.Data.Scheme.html#showSList"><span class="hs-identifier hs-type">showSList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">]</span><span>
+</span><span id="line-53"></span><span id="showSList"><span class="annot"><span class="annottext">showSList :: SExpr -&gt; [Char]
+</span><a href="Kanren.Data.Scheme.html#showSList"><span class="hs-identifier hs-var hs-var">showSList</span></a></span></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="Kanren.Data.Scheme.html#SNil"><span class="hs-identifier hs-var">SNil</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Kanren.Data.Scheme.html#showSList"><span class="hs-identifier hs-var">showSList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#SCons"><span class="hs-identifier hs-type">SCons</span></a></span><span> </span><span id="local-6989586621679173816"><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173816"><span class="hs-identifier hs-var">car</span></a></span></span><span> </span><span id="local-6989586621679173817"><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173817"><span class="hs-identifier hs-var">cdr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173816"><span class="hs-identifier hs-var">car</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; [Char]
+</span><a href="Kanren.Data.Scheme.html#showSList"><span class="hs-identifier hs-var">showSList</span></a></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173817"><span class="hs-identifier hs-var">cdr</span></a></span><span>
+</span><span id="line-55"></span><span class="annot"><a href="Kanren.Data.Scheme.html#showSList"><span class="hs-identifier hs-var">showSList</span></a></span><span> </span><span id="local-6989586621679173818"><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173818"><span class="hs-identifier hs-var">other</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; . &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173818"><span class="hs-identifier hs-var">other</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679173820"><span id="local-6989586621679173825"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Value"><span class="hs-identifier hs-type">Value</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-58"></span><span>  </span><span id="local-6989586621679173839"><span class="annot"><span class="annottext">show :: Value -&gt; [Char]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span id="local-6989586621679173840"><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173840"><span class="hs-identifier hs-var">expr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173840"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#Closure"><span class="hs-identifier hs-type">Closure</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span id="local-6989586621679173841"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679173841"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679173842"><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173842"><span class="hs-identifier hs-var">body</span></a></span></span><span> </span><span id="local-6989586621679173843"><span class="annot"><span class="annottext">[(Symbol, Value)]
+</span><a href="#local-6989586621679173843"><span class="hs-identifier hs-var">env</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-60"></span><span>    </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;#(lambda (&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679173841"><span class="hs-identifier hs-var">var</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;) &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="#local-6989586621679173842"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[(Symbol, Value)] -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[(Symbol, Value)]
+</span><a href="#local-6989586621679173843"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679173846"><span class="annot"><span class="hs-identifier hs-type">IsList</span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-keyword">type</span><span> </span><span id="Item"><span class="annot"><span class="hs-identifier hs-var">Item</span></span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621679173852"><span class="annot"><span class="annottext">fromList :: [Item SExpr] -&gt; SExpr
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fromList</span></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SExpr
+</span><a href="Kanren.Data.Scheme.html#SNil"><span class="hs-identifier hs-var">SNil</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">fromList</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679173853"><span class="annot"><span class="annottext">Item SExpr
+</span><a href="#local-6989586621679173853"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621679173854"><span class="annot"><span class="annottext">[Item SExpr]
+</span><a href="#local-6989586621679173854"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; SExpr -&gt; SExpr
+</span><a href="Kanren.Data.Scheme.html#SCons"><span class="hs-identifier hs-var">SCons</span></a></span><span> </span><span class="annot"><span class="annottext">Item SExpr
+SExpr
+</span><a href="#local-6989586621679173853"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Item SExpr] -&gt; SExpr
+forall l. IsList l =&gt; [Item l] -&gt; l
+</span><span class="hs-identifier hs-var">fromList</span></span><span> </span><span class="annot"><span class="annottext">[Item SExpr]
+</span><a href="#local-6989586621679173854"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>  </span><span id="local-6989586621679173857"><span class="annot"><span class="annottext">toList :: SExpr -&gt; [Item SExpr]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">toList</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; [Item SExpr]
+SExpr -&gt; [SExpr]
+forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IsString</span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621679173862"><span class="annot"><span class="annottext">fromString :: [Char] -&gt; SExpr
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fromString</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Symbol -&gt; SExpr
+</span><a href="Kanren.Data.Scheme.html#SSymbol"><span class="hs-identifier hs-var">SSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">(Symbol -&gt; SExpr) -&gt; ([Char] -&gt; Symbol) -&gt; [Char] -&gt; SExpr
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Symbol
+forall a. a -&gt; Atomic a
+</span><a href="Kanren.Core.html#Atomic"><span class="hs-identifier hs-var">Atomic</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span id="Logic"><span id="LogicSExpr"><span id="local-6989586621679173865"><span id="local-6989586621679173867"><span id="local-6989586621679173870"><span id="local-6989586621679173876"><span id="local-6989586621679173882"><span id="local-6989586621679173888"><span id="local-6989586621679173895"><span id="LogicSSymbol"><span id="LogicSNil"><span id="LogicSCons"><span class="hs-identifier">makeLogic</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">SExpr</span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-72"></span><span id="Logic"><span id="LogicValue"><span id="local-6989586621679174002"><span id="local-6989586621679174004"><span id="local-6989586621679174007"><span id="local-6989586621679174013"><span id="local-6989586621679174019"><span id="local-6989586621679174025"><span id="local-6989586621679174032"><span id="LogicSExpr"><span id="LogicClosure"><span class="hs-identifier">makeLogic</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">Value</span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-73"></span><span id="_LogicSSymbol"><span id="_LogicSNil"><span id="_LogicSCons"><span class="hs-identifier">makePrisms</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">LogicSExpr</span></span></span></span><span>
+</span><span id="line-74"></span><span id="_LogicSExpr"><span id="_LogicClosure"><span class="hs-identifier">makePrisms</span><span> </span><span class="hs-special">''</span><span class="hs-identifier">LogicValue</span></span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Kanren.Core.html#Normalizable"><span class="hs-identifier hs-type">Normalizable</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621679174191"><span class="annot"><span class="annottext">normalize :: (forall i. VarId i -&gt; Normalizer (VarId i))
+-&gt; Logic SExpr -&gt; Normalizer (Logic SExpr)
+</span><a href="#local-6989586621679174191"><span class="hs-identifier hs-var hs-var hs-var hs-var">normalize</span></a></span></span><span> </span><span id="local-6989586621679174193"><span class="annot"><span class="annottext">forall i. VarId i -&gt; Normalizer (VarId i)
+</span><a href="#local-6989586621679174193"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-type">LogicSSymbol</span></a></span><span> </span><span id="local-6989586621679174194"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174194"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term Symbol -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-var">LogicSSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">(Term Symbol -&gt; LogicSExpr)
+-&gt; Normalizer (Term Symbol) -&gt; Normalizer LogicSExpr
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(forall i. VarId i -&gt; Normalizer (VarId i))
+-&gt; Term Symbol -&gt; Normalizer (Term Symbol)
+forall a.
+Normalizable a =&gt;
+(forall i. VarId i -&gt; Normalizer (VarId i))
+-&gt; Term a -&gt; Normalizer (Term a)
+</span><a href="Kanren.Core.html#normalize%27"><span class="hs-identifier hs-var">normalize'</span></a></span><span> </span><span class="annot"><span class="annottext">VarId i -&gt; Normalizer (VarId i)
+forall i. VarId i -&gt; Normalizer (VarId i)
+</span><a href="#local-6989586621679174193"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174194"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-78"></span><span>  </span><span class="annot"><a href="Kanren.Core.html#normalize"><span class="hs-identifier hs-var">normalize</span></a></span><span> </span><span class="annot"><span class="annottext">forall i. VarId i -&gt; Normalizer (VarId i)
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Logic SExpr
+LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSNil"><span class="hs-identifier hs-var">LogicSNil</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LogicSExpr -&gt; Normalizer LogicSExpr
+forall a. a -&gt; Normalizer a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSNil"><span class="hs-identifier hs-var">LogicSNil</span></a></span><span>
+</span><span id="line-79"></span><span>  </span><span class="annot"><a href="Kanren.Core.html#normalize"><span class="hs-identifier hs-var">normalize</span></a></span><span> </span><span id="local-6989586621679174197"><span class="annot"><span class="annottext">forall i. VarId i -&gt; Normalizer (VarId i)
+</span><a href="#local-6989586621679174197"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-type">LogicSCons</span></a></span><span> </span><span id="local-6989586621679174198"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174198"><span class="hs-identifier hs-var">car</span></a></span></span><span> </span><span id="local-6989586621679174199"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174199"><span class="hs-identifier hs-var">cdr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="annot"><span class="annottext">(Term SExpr -&gt; Term SExpr -&gt; LogicSExpr)
+-&gt; Normalizer (Term SExpr) -&gt; Normalizer (Term SExpr -&gt; LogicSExpr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">(forall i. VarId i -&gt; Normalizer (VarId i))
+-&gt; Term SExpr -&gt; Normalizer (Term SExpr)
+forall a.
+Normalizable a =&gt;
+(forall i. VarId i -&gt; Normalizer (VarId i))
+-&gt; Term a -&gt; Normalizer (Term a)
+</span><a href="Kanren.Core.html#normalize%27"><span class="hs-identifier hs-var">normalize'</span></a></span><span> </span><span class="annot"><span class="annottext">VarId i -&gt; Normalizer (VarId i)
+forall i. VarId i -&gt; Normalizer (VarId i)
+</span><a href="#local-6989586621679174197"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174198"><span class="hs-identifier hs-var">car</span></a></span><span> </span><span class="annot"><span class="annottext">Normalizer (Term SExpr -&gt; LogicSExpr)
+-&gt; Normalizer (Term SExpr) -&gt; Normalizer LogicSExpr
+forall a b. Normalizer (a -&gt; b) -&gt; Normalizer a -&gt; Normalizer b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(forall i. VarId i -&gt; Normalizer (VarId i))
+-&gt; Term SExpr -&gt; Normalizer (Term SExpr)
+forall a.
+Normalizable a =&gt;
+(forall i. VarId i -&gt; Normalizer (VarId i))
+-&gt; Term a -&gt; Normalizer (Term a)
+</span><a href="Kanren.Core.html#normalize%27"><span class="hs-identifier hs-var">normalize'</span></a></span><span> </span><span class="annot"><span class="annottext">VarId i -&gt; Normalizer (VarId i)
+forall i. VarId i -&gt; Normalizer (VarId i)
+</span><a href="#local-6989586621679174197"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174199"><span class="hs-identifier hs-var">cdr</span></a></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span id="local-6989586621679174201"><span class="hs-keyword">deriving</span><span> </span><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span id="local-6989586621679173538"><span id="local-6989586621679173540"><span id="local-6989586621679173541"><span id="local-6989586621679173542"><span class="annot"><a href="Kanren.Data.Scheme.html#_LogicSSymbol%27"><span class="hs-identifier hs-type">_LogicSSymbol'</span></a></span><span>
+</span><span id="line-84"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Prism</span></span><span>
+</span><span id="line-85"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679173538"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173541"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173542"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679173540"><span class="hs-identifier hs-type">s'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173541"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173542"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679173538"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679173540"><span class="hs-identifier hs-type">s'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-89"></span><span id="_LogicSSymbol%27"><span class="annot"><span class="annottext">_LogicSSymbol' :: forall s n c s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Tagged s (Term Symbol)) (f (Tagged s' (Term Symbol)))
+-&gt; p (Tagged (s, n, c) LogicSExpr)
+     (f (Tagged (s', n, c) LogicSExpr))
+</span><a href="Kanren.Data.Scheme.html#_LogicSSymbol%27"><span class="hs-identifier hs-var hs-var">_LogicSSymbol'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AnIso
+  LogicSExpr
+  LogicSExpr
+  (Tagged (s', n, c) LogicSExpr)
+  (Tagged (s, n, c) LogicSExpr)
+-&gt; Iso
+     (Tagged (s, n, c) LogicSExpr)
+     (Tagged (s', n, c) LogicSExpr)
+     LogicSExpr
+     LogicSExpr
+forall s t a b. AnIso s t a b -&gt; Iso b a t s
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">AnIso
+  LogicSExpr
+  LogicSExpr
+  (Tagged (s', n, c) LogicSExpr)
+  (Tagged (s, n, c) LogicSExpr)
+forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var">_Tagged</span></a></span><span> </span><span class="annot"><span class="annottext">(p LogicSExpr (f LogicSExpr)
+ -&gt; p (Tagged (s, n, c) LogicSExpr)
+      (f (Tagged (s', n, c) LogicSExpr)))
+-&gt; (p (Tagged s (Term Symbol)) (f (Tagged s' (Term Symbol)))
+    -&gt; p LogicSExpr (f LogicSExpr))
+-&gt; p (Tagged s (Term Symbol)) (f (Tagged s' (Term Symbol)))
+-&gt; p (Tagged (s, n, c) LogicSExpr)
+     (f (Tagged (s', n, c) LogicSExpr))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p (Term Symbol) (f (Term Symbol)) -&gt; p LogicSExpr (f LogicSExpr)
+Prism' LogicSExpr (Term Symbol)
+</span><a href="Kanren.Data.Scheme.html#_LogicSSymbol"><span class="hs-identifier hs-var">_LogicSSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">(p (Term Symbol) (f (Term Symbol)) -&gt; p LogicSExpr (f LogicSExpr))
+-&gt; (p (Tagged s (Term Symbol)) (f (Tagged s' (Term Symbol)))
+    -&gt; p (Term Symbol) (f (Term Symbol)))
+-&gt; p (Tagged s (Term Symbol)) (f (Tagged s' (Term Symbol)))
+-&gt; p LogicSExpr (f LogicSExpr)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p (Tagged s (Term Symbol)) (f (Tagged s' (Term Symbol)))
+-&gt; p (Term Symbol) (f (Term Symbol))
+forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var">_Tagged</span></a></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span id="local-6989586621679173567"><span id="local-6989586621679173568"><span id="local-6989586621679173569"><span id="local-6989586621679173570"><span class="annot"><a href="Kanren.Data.Scheme.html#_LogicSNil%27"><span class="hs-identifier hs-type">_LogicSNil'</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Prism</span></span><span>
+</span><span id="line-93"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679173569"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173567"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173570"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-94"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679173569"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173568"><span class="hs-identifier hs-type">n'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173570"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679173567"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679173568"><span class="hs-identifier hs-type">n'</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-97"></span><span id="_LogicSNil%27"><span class="annot"><span class="annottext">_LogicSNil' :: forall s n c n' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Tagged n ()) (f (Tagged n' ()))
+-&gt; p (Tagged (s, n, c) LogicSExpr)
+     (f (Tagged (s, n', c) LogicSExpr))
+</span><a href="Kanren.Data.Scheme.html#_LogicSNil%27"><span class="hs-identifier hs-var hs-var">_LogicSNil'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AnIso
+  LogicSExpr
+  LogicSExpr
+  (Tagged (s, n', c) LogicSExpr)
+  (Tagged (s, n, c) LogicSExpr)
+-&gt; Iso
+     (Tagged (s, n, c) LogicSExpr)
+     (Tagged (s, n', c) LogicSExpr)
+     LogicSExpr
+     LogicSExpr
+forall s t a b. AnIso s t a b -&gt; Iso b a t s
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">AnIso
+  LogicSExpr
+  LogicSExpr
+  (Tagged (s, n', c) LogicSExpr)
+  (Tagged (s, n, c) LogicSExpr)
+forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var">_Tagged</span></a></span><span> </span><span class="annot"><span class="annottext">(p LogicSExpr (f LogicSExpr)
+ -&gt; p (Tagged (s, n, c) LogicSExpr)
+      (f (Tagged (s, n', c) LogicSExpr)))
+-&gt; (p (Tagged n ()) (f (Tagged n' ()))
+    -&gt; p LogicSExpr (f LogicSExpr))
+-&gt; p (Tagged n ()) (f (Tagged n' ()))
+-&gt; p (Tagged (s, n, c) LogicSExpr)
+     (f (Tagged (s, n', c) LogicSExpr))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p () (f ()) -&gt; p LogicSExpr (f LogicSExpr)
+Prism' LogicSExpr ()
+</span><a href="Kanren.Data.Scheme.html#_LogicSNil"><span class="hs-identifier hs-var">_LogicSNil</span></a></span><span> </span><span class="annot"><span class="annottext">(p () (f ()) -&gt; p LogicSExpr (f LogicSExpr))
+-&gt; (p (Tagged n ()) (f (Tagged n' ())) -&gt; p () (f ()))
+-&gt; p (Tagged n ()) (f (Tagged n' ()))
+-&gt; p LogicSExpr (f LogicSExpr)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p (Tagged n ()) (f (Tagged n' ())) -&gt; p () (f ())
+forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var">_Tagged</span></a></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span id="local-6989586621679173577"><span id="local-6989586621679173578"><span id="local-6989586621679173579"><span id="local-6989586621679173580"><span class="annot"><a href="Kanren.Data.Scheme.html#_LogicSCons%27"><span class="hs-identifier hs-type">_LogicSCons'</span></a></span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Prism</span></span><span>
+</span><span id="line-101"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679173579"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173580"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173577"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679173579"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173580"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679173578"><span class="hs-identifier hs-type">c'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679173577"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tagged</span></span><span> </span><span class="annot"><a href="#local-6989586621679173578"><span class="hs-identifier hs-type">c'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-105"></span><span id="_LogicSCons%27"><span class="annot"><span class="annottext">_LogicSCons' :: forall s n c c' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Choice p, Applicative f) =&gt;
+p (Tagged c (Term SExpr, Term SExpr))
+  (f (Tagged c' (Term SExpr, Term SExpr)))
+-&gt; p (Tagged (s, n, c) LogicSExpr)
+     (f (Tagged (s, n, c') LogicSExpr))
+</span><a href="Kanren.Data.Scheme.html#_LogicSCons%27"><span class="hs-identifier hs-var hs-var">_LogicSCons'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AnIso
+  LogicSExpr
+  LogicSExpr
+  (Tagged (s, n, c') LogicSExpr)
+  (Tagged (s, n, c) LogicSExpr)
+-&gt; Iso
+     (Tagged (s, n, c) LogicSExpr)
+     (Tagged (s, n, c') LogicSExpr)
+     LogicSExpr
+     LogicSExpr
+forall s t a b. AnIso s t a b -&gt; Iso b a t s
+</span><span class="hs-identifier hs-var">from</span></span><span> </span><span class="annot"><span class="annottext">AnIso
+  LogicSExpr
+  LogicSExpr
+  (Tagged (s, n, c') LogicSExpr)
+  (Tagged (s, n, c) LogicSExpr)
+forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var">_Tagged</span></a></span><span> </span><span class="annot"><span class="annottext">(p LogicSExpr (f LogicSExpr)
+ -&gt; p (Tagged (s, n, c) LogicSExpr)
+      (f (Tagged (s, n, c') LogicSExpr)))
+-&gt; (p (Tagged c (Term SExpr, Term SExpr))
+      (f (Tagged c' (Term SExpr, Term SExpr)))
+    -&gt; p LogicSExpr (f LogicSExpr))
+-&gt; p (Tagged c (Term SExpr, Term SExpr))
+     (f (Tagged c' (Term SExpr, Term SExpr)))
+-&gt; p (Tagged (s, n, c) LogicSExpr)
+     (f (Tagged (s, n, c') LogicSExpr))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p (Term SExpr, Term SExpr) (f (Term SExpr, Term SExpr))
+-&gt; p LogicSExpr (f LogicSExpr)
+Prism' LogicSExpr (Term SExpr, Term SExpr)
+</span><a href="Kanren.Data.Scheme.html#_LogicSCons"><span class="hs-identifier hs-var">_LogicSCons</span></a></span><span> </span><span class="annot"><span class="annottext">(p (Term SExpr, Term SExpr) (f (Term SExpr, Term SExpr))
+ -&gt; p LogicSExpr (f LogicSExpr))
+-&gt; (p (Tagged c (Term SExpr, Term SExpr))
+      (f (Tagged c' (Term SExpr, Term SExpr)))
+    -&gt; p (Term SExpr, Term SExpr) (f (Term SExpr, Term SExpr)))
+-&gt; p (Tagged c (Term SExpr, Term SExpr))
+     (f (Tagged c' (Term SExpr, Term SExpr)))
+-&gt; p LogicSExpr (f LogicSExpr)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p (Tagged c (Term SExpr, Term SExpr))
+  (f (Tagged c' (Term SExpr, Term SExpr)))
+-&gt; p (Term SExpr, Term SExpr) (f (Term SExpr, Term SExpr))
+forall b b' s s' (p :: * -&gt; * -&gt; *) (f :: * -&gt; *).
+(Profunctor p, Functor f) =&gt;
+p (Tagged s b) (f (Tagged s' b')) -&gt; p b (f b')
+</span><a href="Kanren.Match.html#_Tagged"><span class="hs-identifier hs-var">_Tagged</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679174272"><span id="local-6989586621679174276"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-108"></span><span>  </span><span id="local-6989586621679174284"><span class="annot"><span class="annottext">show :: LogicSExpr -&gt; [Char]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-type">LogicSSymbol</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Atomic"><span class="hs-identifier hs-type">Atomic</span></a></span><span> </span><span id="local-6989586621679174286"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679174286"><span class="hs-identifier hs-var">symbol</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679174286"><span class="hs-identifier hs-var">symbol</span></a></span><span>
+</span><span id="line-109"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-type">LogicSSymbol</span></a></span><span> </span><span id="local-6989586621679174287"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174287"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term Symbol -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174287"><span class="hs-identifier hs-var">var</span></a></span><span>
+</span><span id="line-110"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSNil"><span class="hs-identifier hs-var">LogicSNil</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;()&quot;</span></span><span>
+</span><span id="line-111"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-type">LogicSCons</span></a></span><span> </span><span id="local-6989586621679174288"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174288"><span class="hs-identifier hs-var">car</span></a></span></span><span> </span><span id="local-6989586621679174289"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174289"><span class="hs-identifier hs-var">cdr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;(&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174288"><span class="hs-identifier hs-var">car</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; [Char]
+</span><a href="Kanren.Data.Scheme.html#showLogicSList"><span class="hs-identifier hs-var">showLogicSList</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174289"><span class="hs-identifier hs-var">cdr</span></a></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679174292"><span id="local-6989586621679174297"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicValue"><span class="hs-identifier hs-type">LogicValue</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-114"></span><span>  </span><span id="local-6989586621679174315"><span class="annot"><span class="annottext">show :: LogicValue -&gt; [Char]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-type">LogicSExpr</span></a></span><span> </span><span id="local-6989586621679174316"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174316"><span class="hs-identifier hs-var">expr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174316"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-115"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicClosure"><span class="hs-identifier hs-type">LogicClosure</span></a></span><span> </span><span id="local-6989586621679174317"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174317"><span class="hs-identifier hs-var">var</span></a></span></span><span> </span><span id="local-6989586621679174318"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174318"><span class="hs-identifier hs-var">body</span></a></span></span><span> </span><span id="local-6989586621679174319"><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174319"><span class="hs-identifier hs-var">env</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-116"></span><span>    </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;#(lambda (&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term Symbol -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174317"><span class="hs-identifier hs-var">var</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;) &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174318"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)] -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174319"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Kanren.Data.Scheme.html#showLogicSList"><span class="hs-identifier hs-type">showLogicSList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">]</span><span>
+</span><span id="line-119"></span><span id="showLogicSList"><span class="annot"><span class="annottext">showLogicSList :: Term SExpr -&gt; [Char]
+</span><a href="Kanren.Data.Scheme.html#showLogicSList"><span class="hs-identifier hs-var hs-var">showLogicSList</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr
+LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSNil"><span class="hs-identifier hs-var">LogicSNil</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-120"></span><span class="annot"><a href="Kanren.Data.Scheme.html#showLogicSList"><span class="hs-identifier hs-var">showLogicSList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-type">LogicSCons</span></a></span><span> </span><span id="local-6989586621679174320"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174320"><span class="hs-identifier hs-var">car</span></a></span></span><span> </span><span id="local-6989586621679174321"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174321"><span class="hs-identifier hs-var">cdr</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174320"><span class="hs-identifier hs-var">car</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; [Char]
+</span><a href="Kanren.Data.Scheme.html#showLogicSList"><span class="hs-identifier hs-var">showLogicSList</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174321"><span class="hs-identifier hs-var">cdr</span></a></span><span>
+</span><span id="line-121"></span><span class="annot"><a href="Kanren.Data.Scheme.html#showLogicSList"><span class="hs-identifier hs-var">showLogicSList</span></a></span><span> </span><span id="local-6989586621679174322"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174322"><span class="hs-identifier hs-var">other</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot; . &quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; [Char]
+forall a. Show a =&gt; a -&gt; [Char]
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174322"><span class="hs-identifier hs-var">other</span></a></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="annot"><a href="Kanren.Data.Scheme.html#applyo"><span class="hs-identifier hs-type">applyo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span id="applyo"><span class="annot"><span class="annottext">applyo :: Term SExpr -&gt; Term SExpr -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#applyo"><span class="hs-identifier hs-var hs-var">applyo</span></a></span></span><span> </span><span id="local-6989586621679174324"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174324"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679174325"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174325"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679174326"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174326"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174326"><span class="hs-identifier hs-var">expr</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174324"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174325"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr
+LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSNil"><span class="hs-identifier hs-var">LogicSNil</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="annot"><a href="Kanren.Data.Scheme.html#lambda"><span class="hs-identifier hs-type">lambda</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span>
+</span><span id="line-127"></span><span id="lambda"><span class="annot"><span class="annottext">lambda :: Term Symbol
+</span><a href="Kanren.Data.Scheme.html#lambda"><span class="hs-identifier hs-var hs-var">lambda</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Symbol -&gt; Term Symbol
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Symbol
+forall a. a -&gt; Atomic a
+</span><a href="Kanren.Core.html#Atomic"><span class="hs-identifier hs-var">Atomic</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;lambda&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="annot"><a href="Kanren.Data.Scheme.html#quote"><span class="hs-identifier hs-type">quote</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span>
+</span><span id="line-130"></span><span id="quote"><span class="annot"><span class="annottext">quote :: Term Symbol
+</span><a href="Kanren.Data.Scheme.html#quote"><span class="hs-identifier hs-var hs-var">quote</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Symbol -&gt; Term Symbol
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Symbol
+forall a. a -&gt; Atomic a
+</span><a href="Kanren.Core.html#Atomic"><span class="hs-identifier hs-var">Atomic</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;quote&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="annot"><a href="Kanren.Data.Scheme.html#list"><span class="hs-identifier hs-type">list</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span>
+</span><span id="line-133"></span><span id="list"><span class="annot"><span class="annottext">list :: Term Symbol
+</span><a href="Kanren.Data.Scheme.html#list"><span class="hs-identifier hs-var hs-var">list</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Symbol -&gt; Term Symbol
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Char] -&gt; Symbol
+forall a. a -&gt; Atomic a
+</span><a href="Kanren.Core.html#Atomic"><span class="hs-identifier hs-var">Atomic</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;list&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="annot"><a href="Kanren.Data.Scheme.html#lambdao"><span class="hs-identifier hs-type">lambdao</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span id="lambdao"><span class="annot"><span class="annottext">lambdao :: Term Symbol -&gt; Term SExpr -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#lambdao"><span class="hs-identifier hs-var hs-var">lambdao</span></a></span></span><span> </span><span id="local-6989586621679174333"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174333"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679174334"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174334"><span class="hs-identifier hs-var">body</span></a></span></span><span> </span><span id="local-6989586621679174335"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174335"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-137"></span><span>  </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174335"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-138"></span><span>    </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span>
+</span><span id="line-139"></span><span>      </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span>
+</span><span id="line-140"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-var">LogicSSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="Kanren.Data.Scheme.html#lambda"><span class="hs-identifier hs-var">lambda</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-141"></span><span>          </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span>
+</span><span id="line-142"></span><span>              </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span>
+</span><span id="line-143"></span><span>                  </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174336"><span class="hs-identifier hs-var">parameter</span></a></span><span>
+</span><span id="line-144"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174334"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr
+LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSNil"><span class="hs-identifier hs-var">LogicSNil</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>              </span><span class="hs-special">)</span><span>
+</span><span id="line-146"></span><span>          </span><span class="hs-special">)</span><span>
+</span><span id="line-147"></span><span>      </span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-149"></span><span>  </span><span id="local-6989586621679174336"><span class="annot"><span class="annottext">parameter :: Term SExpr
+</span><a href="#local-6989586621679174336"><span class="hs-identifier hs-var hs-var">parameter</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-var">LogicSSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174333"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr
+LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSNil"><span class="hs-identifier hs-var">LogicSNil</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="annot"><a href="Kanren.Data.Scheme.html#quoteo"><span class="hs-identifier hs-type">quoteo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span id="quoteo"><span class="annot"><span class="annottext">quoteo :: Term SExpr -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#quoteo"><span class="hs-identifier hs-var hs-var">quoteo</span></a></span></span><span> </span><span id="local-6989586621679174338"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174338"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span id="local-6989586621679174339"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174339"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-153"></span><span>  </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174339"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-154"></span><span>    </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span>
+</span><span id="line-155"></span><span>      </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span>
+</span><span id="line-156"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-var">LogicSSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="Kanren.Data.Scheme.html#quote"><span class="hs-identifier hs-var">quote</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-157"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174338"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr
+LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSNil"><span class="hs-identifier hs-var">LogicSNil</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-158"></span><span>      </span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="annot"><a href="Kanren.Data.Scheme.html#listo"><span class="hs-identifier hs-type">listo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span id="listo"><span class="annot"><span class="annottext">listo :: Term SExpr -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#listo"><span class="hs-identifier hs-var hs-var">listo</span></a></span></span><span> </span><span id="local-6989586621679174341"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174341"><span class="hs-identifier hs-var">exprs</span></a></span></span><span> </span><span id="local-6989586621679174342"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174342"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-162"></span><span>  </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174342"><span class="hs-identifier hs-var">expr</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-var">LogicSSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="Kanren.Data.Scheme.html#list"><span class="hs-identifier hs-var">list</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174341"><span class="hs-identifier hs-var">exprs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span class="annot"><a href="Kanren.Data.Scheme.html#lookupo"><span class="hs-identifier hs-type">lookupo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-165"></span><span id="lookupo"><span class="annot"><span class="annottext">lookupo :: Term Symbol -&gt; Term [(Symbol, Value)] -&gt; Term Value -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#lookupo"><span class="hs-identifier hs-var hs-var">lookupo</span></a></span></span><span> </span><span id="local-6989586621679174344"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174344"><span class="hs-identifier hs-var">expectedVar</span></a></span></span><span> </span><span id="local-6989586621679174345"><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174345"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621679174346"><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174346"><span class="hs-identifier hs-var">returnValue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-166"></span><span>  </span><span class="hs-special">(</span><span id="local-6989586621679174347"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174347"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174348"><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174348"><span class="hs-identifier hs-var">value</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174349"><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174349"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term Symbol, Term Value, Term [(Symbol, Value)])
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174345"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)] -&gt; Term [(Symbol, Value)] -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic [(Symbol, Value)] -&gt; Term [(Symbol, Value)]
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term (Symbol, Value)
+-&gt; Term [(Symbol, Value)] -&gt; LogicList (Symbol, Value)
+forall a. Term a -&gt; Term [a] -&gt; LogicList a
+</span><a href="Kanren.LogicalBase.html#LogicCons"><span class="hs-identifier hs-var">LogicCons</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic (Symbol, Value) -&gt; Term (Symbol, Value)
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174347"><span class="hs-identifier hs-var">var</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174348"><span class="hs-identifier hs-var">value</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174349"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-168"></span><span>  </span><span class="annot"><span class="annottext">[Goal ()] -&gt; Goal ()
+forall x. [Goal x] -&gt; Goal x
+</span><a href="Kanren.Goal.html#disjMany"><span class="hs-identifier hs-var">disjMany</span></a></span><span>
+</span><span id="line-169"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-170"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174347"><span class="hs-identifier hs-var">var</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term Symbol -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174344"><span class="hs-identifier hs-var">expectedVar</span></a></span><span>
+</span><span id="line-171"></span><span>        </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174348"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Term Value -&gt; Term Value -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174346"><span class="hs-identifier hs-var">returnValue</span></a></span><span>
+</span><span id="line-172"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-173"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174347"><span class="hs-identifier hs-var">var</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term Symbol -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%2F%3D"><span class="hs-operator hs-var">=/=</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174344"><span class="hs-identifier hs-var">expectedVar</span></a></span><span>
+</span><span id="line-174"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term [(Symbol, Value)] -&gt; Term Value -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#lookupo"><span class="hs-identifier hs-var">lookupo</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174344"><span class="hs-identifier hs-var">expectedVar</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174349"><span class="hs-identifier hs-var">rest</span></a></span><span> </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174346"><span class="hs-identifier hs-var">returnValue</span></a></span><span>
+</span><span id="line-175"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span class="annot"><a href="Kanren.Data.Scheme.html#notInEnvo"><span class="hs-identifier hs-type">notInEnvo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Symbol"><span class="hs-identifier hs-type">Symbol</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-178"></span><span id="notInEnvo"><span class="annot"><span class="annottext">notInEnvo :: Term Symbol -&gt; Term [(Symbol, Value)] -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#notInEnvo"><span class="hs-identifier hs-var hs-var">notInEnvo</span></a></span></span><span> </span><span id="local-6989586621679174355"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174355"><span class="hs-identifier hs-var">var</span></a></span></span><span> </span><span id="local-6989586621679174356"><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174356"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-179"></span><span>  </span><span class="annot"><span class="annottext">[Goal ()] -&gt; Goal ()
+forall x. [Goal x] -&gt; Goal x
+</span><a href="Kanren.Goal.html#disjMany"><span class="hs-identifier hs-var">disjMany</span></a></span><span>
+</span><span id="line-180"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-181"></span><span>        </span><span class="hs-special">(</span><span id="local-6989586621679174357"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174357"><span class="hs-identifier hs-var">entryVar</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174358"><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174358"><span class="hs-identifier hs-var">value</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174359"><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174359"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term Symbol, Term Value, Term [(Symbol, Value)])
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-182"></span><span>        </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174356"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)] -&gt; Term [(Symbol, Value)] -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic [(Symbol, Value)] -&gt; Term [(Symbol, Value)]
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term (Symbol, Value)
+-&gt; Term [(Symbol, Value)] -&gt; LogicList (Symbol, Value)
+forall a. Term a -&gt; Term [a] -&gt; LogicList a
+</span><a href="Kanren.LogicalBase.html#LogicCons"><span class="hs-identifier hs-var">LogicCons</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic (Symbol, Value) -&gt; Term (Symbol, Value)
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174357"><span class="hs-identifier hs-var">entryVar</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174358"><span class="hs-identifier hs-var">value</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174359"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-183"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174357"><span class="hs-identifier hs-var">entryVar</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term Symbol -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%2F%3D"><span class="hs-operator hs-var">=/=</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174355"><span class="hs-identifier hs-var">var</span></a></span><span>
+</span><span id="line-184"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term [(Symbol, Value)] -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#notInEnvo"><span class="hs-identifier hs-var">notInEnvo</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174355"><span class="hs-identifier hs-var">var</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174359"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-185"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-186"></span><span>        </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174356"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)] -&gt; Term [(Symbol, Value)] -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">[(Symbol, Value)] -&gt; Term [(Symbol, Value)]
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-187"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="annot"><a href="Kanren.Data.Scheme.html#properListo"><span class="hs-identifier hs-type">properListo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-190"></span><span id="properListo"><span class="annot"><span class="annottext">properListo :: Term SExpr -&gt; Term [(Symbol, Value)] -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#properListo"><span class="hs-identifier hs-var hs-var">properListo</span></a></span></span><span> </span><span id="local-6989586621679174361"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174361"><span class="hs-identifier hs-var">exprs</span></a></span></span><span> </span><span id="local-6989586621679174362"><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174362"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621679174363"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174363"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-191"></span><span>  </span><span class="annot"><span class="annottext">[Goal ()] -&gt; Goal ()
+forall x. [Goal x] -&gt; Goal x
+</span><a href="Kanren.Goal.html#disjMany"><span class="hs-identifier hs-var">disjMany</span></a></span><span>
+</span><span id="line-192"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-193"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174361"><span class="hs-identifier hs-var">exprs</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; Term SExpr
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-194"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174363"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">SExpr -&gt; Term SExpr
+forall a. Logical a =&gt; a -&gt; Term a
+</span><a href="Kanren.Core.html#inject%27"><span class="hs-identifier hs-var">inject'</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-195"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-196"></span><span>        </span><span class="hs-special">(</span><span id="local-6989586621679174364"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174364"><span class="hs-identifier hs-var">car</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174365"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174365"><span class="hs-identifier hs-var">cdr</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174366"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174366"><span class="hs-identifier hs-var">car'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174367"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174367"><span class="hs-identifier hs-var">cdr'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term SExpr, Term SExpr, Term SExpr, Term SExpr)
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-197"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174361"><span class="hs-identifier hs-var">exprs</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174364"><span class="hs-identifier hs-var">car</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174365"><span class="hs-identifier hs-var">cdr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-198"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174363"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSCons"><span class="hs-identifier hs-var">LogicSCons</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174366"><span class="hs-identifier hs-var">car'</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174367"><span class="hs-identifier hs-var">cdr'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-199"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term [(Symbol, Value)] -&gt; Term Value -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#evalo"><span class="hs-identifier hs-var">evalo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174364"><span class="hs-identifier hs-var">car</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174362"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic Value -&gt; Term Value
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; LogicValue
+</span><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-var">LogicSExpr</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174366"><span class="hs-identifier hs-var">car'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-200"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term [(Symbol, Value)] -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#properListo"><span class="hs-identifier hs-var">properListo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174365"><span class="hs-identifier hs-var">cdr</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174362"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174367"><span class="hs-identifier hs-var">cdr'</span></a></span><span>
+</span><span id="line-201"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-202"></span><span>
+</span><span id="line-203"></span><span class="annot"><a href="Kanren.Data.Scheme.html#evalo"><span class="hs-identifier hs-type">evalo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#SExpr"><span class="hs-identifier hs-type">SExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Env"><span class="hs-identifier hs-type">Env</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Core.html#Term"><span class="hs-identifier hs-type">Term</span></a></span><span> </span><span class="annot"><a href="Kanren.Data.Scheme.html#Value"><span class="hs-identifier hs-type">Value</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Kanren.Goal.html#Goal"><span class="hs-identifier hs-type">Goal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-204"></span><span id="evalo"><span class="annot"><span class="annottext">evalo :: Term SExpr -&gt; Term [(Symbol, Value)] -&gt; Term Value -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#evalo"><span class="hs-identifier hs-var hs-var">evalo</span></a></span></span><span> </span><span id="local-6989586621679174368"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174368"><span class="hs-identifier hs-var">expr</span></a></span></span><span> </span><span id="local-6989586621679174369"><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174369"><span class="hs-identifier hs-var">env</span></a></span></span><span> </span><span id="local-6989586621679174370"><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174370"><span class="hs-identifier hs-var">value</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-205"></span><span>  </span><span class="annot"><span class="annottext">[Goal ()] -&gt; Goal ()
+forall x. [Goal x] -&gt; Goal x
+</span><a href="Kanren.Goal.html#disjMany"><span class="hs-identifier hs-var">disjMany</span></a></span><span>
+</span><span id="line-206"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-207"></span><span>        </span><span id="local-6989586621679174371"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174371"><span class="hs-identifier hs-var">arg</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term SExpr)
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-208"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#quoteo"><span class="hs-identifier hs-var">quoteo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174371"><span class="hs-identifier hs-var">arg</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174368"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-209"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term [(Symbol, Value)] -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#notInEnvo"><span class="hs-identifier hs-var">notInEnvo</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="Kanren.Data.Scheme.html#quote"><span class="hs-identifier hs-var">quote</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174369"><span class="hs-identifier hs-var">env</span></a></span><span>
+</span><span id="line-210"></span><span>        </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174370"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Term Value -&gt; Term Value -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic Value -&gt; Term Value
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; LogicValue
+</span><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-var">LogicSExpr</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174371"><span class="hs-identifier hs-var">arg</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-211"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-212"></span><span>        </span><span class="hs-special">(</span><span id="local-6989586621679174372"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174372"><span class="hs-identifier hs-var">exprs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174373"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174373"><span class="hs-identifier hs-var">value'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term SExpr, Term SExpr)
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-213"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#listo"><span class="hs-identifier hs-var">listo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174372"><span class="hs-identifier hs-var">exprs</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174368"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-214"></span><span>        </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174370"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Term Value -&gt; Term Value -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic Value -&gt; Term Value
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term SExpr -&gt; LogicValue
+</span><a href="Kanren.Data.Scheme.html#LogicSExpr"><span class="hs-identifier hs-var">LogicSExpr</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174373"><span class="hs-identifier hs-var">value'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-215"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term [(Symbol, Value)] -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#properListo"><span class="hs-identifier hs-var">properListo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174372"><span class="hs-identifier hs-var">exprs</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174369"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174373"><span class="hs-identifier hs-var">value'</span></a></span><span>
+</span><span id="line-216"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-217"></span><span>        </span><span id="local-6989586621679174374"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174374"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term Symbol)
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-218"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174368"><span class="hs-identifier hs-var">expr</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic SExpr -&gt; Term SExpr
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol -&gt; LogicSExpr
+</span><a href="Kanren.Data.Scheme.html#LogicSSymbol"><span class="hs-identifier hs-var">LogicSSymbol</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174374"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-219"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term [(Symbol, Value)] -&gt; Term Value -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#lookupo"><span class="hs-identifier hs-var">lookupo</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174374"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174369"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174370"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-220"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-221"></span><span>        </span><span class="hs-special">(</span><span id="local-6989586621679174375"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174375"><span class="hs-identifier hs-var">rator</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174376"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174376"><span class="hs-identifier hs-var">rand</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174377"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174377"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174378"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174378"><span class="hs-identifier hs-var">body</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174379"><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174379"><span class="hs-identifier hs-var">ratorEnv</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174380"><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174380"><span class="hs-identifier hs-var">rand'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal
+  (Term SExpr, Term SExpr, Term Symbol, Term SExpr,
+   Term [(Symbol, Value)], Term Value)
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-222"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term SExpr -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#applyo"><span class="hs-identifier hs-var">applyo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174375"><span class="hs-identifier hs-var">rator</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174376"><span class="hs-identifier hs-var">rand</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174368"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-223"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term [(Symbol, Value)] -&gt; Term Value -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#evalo"><span class="hs-identifier hs-var">evalo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174375"><span class="hs-identifier hs-var">rator</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174369"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic Value -&gt; Term Value
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol -&gt; Term SExpr -&gt; Term [(Symbol, Value)] -&gt; LogicValue
+</span><a href="Kanren.Data.Scheme.html#LogicClosure"><span class="hs-identifier hs-var">LogicClosure</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174377"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174378"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174379"><span class="hs-identifier hs-var">ratorEnv</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-224"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term [(Symbol, Value)] -&gt; Term Value -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#evalo"><span class="hs-identifier hs-var">evalo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174376"><span class="hs-identifier hs-var">rand</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174369"><span class="hs-identifier hs-var">env</span></a></span><span> </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174380"><span class="hs-identifier hs-var">rand'</span></a></span><span>
+</span><span id="line-225"></span><span>        </span><span class="annot"><span class="annottext">Term SExpr -&gt; Term [(Symbol, Value)] -&gt; Term Value -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#evalo"><span class="hs-identifier hs-var">evalo</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174378"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic [(Symbol, Value)] -&gt; Term [(Symbol, Value)]
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term (Symbol, Value)
+-&gt; Term [(Symbol, Value)] -&gt; LogicList (Symbol, Value)
+forall a. Term a -&gt; Term [a] -&gt; LogicList a
+</span><a href="Kanren.LogicalBase.html#LogicCons"><span class="hs-identifier hs-var">LogicCons</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Logic (Symbol, Value) -&gt; Term (Symbol, Value)
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174377"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174380"><span class="hs-identifier hs-var">rand'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174379"><span class="hs-identifier hs-var">ratorEnv</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174370"><span class="hs-identifier hs-var">value</span></a></span><span>
+</span><span id="line-226"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-227"></span><span>        </span><span class="hs-special">(</span><span id="local-6989586621679174381"><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174381"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679174382"><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174382"><span class="hs-identifier hs-var">body</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Goal (Term Symbol, Term SExpr)
+forall v. Fresh v =&gt; Goal v
+</span><a href="Kanren.Goal.html#fresh"><span class="hs-identifier hs-var">fresh</span></a></span><span>
+</span><span id="line-228"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term SExpr -&gt; Term SExpr -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#lambdao"><span class="hs-identifier hs-var">lambdao</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174381"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174382"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174368"><span class="hs-identifier hs-var">expr</span></a></span><span>
+</span><span id="line-229"></span><span>        </span><span class="annot"><span class="annottext">Term Value
+</span><a href="#local-6989586621679174370"><span class="hs-identifier hs-var">value</span></a></span><span> </span><span class="annot"><span class="annottext">Term Value -&gt; Term Value -&gt; Goal ()
+forall a. Logical a =&gt; Term a -&gt; Term a -&gt; Goal ()
+</span><a href="Kanren.Goal.html#%3D%3D%3D"><span class="hs-operator hs-var">===</span></a></span><span> </span><span class="annot"><span class="annottext">Logic Value -&gt; Term Value
+forall a. Logic a -&gt; Term a
+</span><a href="Kanren.Core.html#Value"><span class="hs-identifier hs-var">Value</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Term Symbol -&gt; Term SExpr -&gt; Term [(Symbol, Value)] -&gt; LogicValue
+</span><a href="Kanren.Data.Scheme.html#LogicClosure"><span class="hs-identifier hs-var">LogicClosure</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="#local-6989586621679174381"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Term SExpr
+</span><a href="#local-6989586621679174382"><span class="hs-identifier hs-var">body</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174369"><span class="hs-identifier hs-var">env</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-230"></span><span>        </span><span class="annot"><span class="annottext">Term Symbol -&gt; Term [(Symbol, Value)] -&gt; Goal ()
+</span><a href="Kanren.Data.Scheme.html#notInEnvo"><span class="hs-identifier hs-var">notInEnvo</span></a></span><span> </span><span class="annot"><span class="annottext">Term Symbol
+</span><a href="Kanren.Data.Scheme.html#lambda"><span class="hs-identifier hs-var">lambda</span></a></span><span> </span><span class="annot"><span class="annottext">Term [(Symbol, Value)]
+</span><a href="#local-6989586621679174369"><span class="hs-identifier hs-var">env</span></a></span><span>
+</span><span id="line-231"></span><span>    </span><span class="hs-special">]</span><span>
+</span><span id="line-232"></span></pre></body></html>

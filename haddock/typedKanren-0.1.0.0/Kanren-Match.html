@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Kanren.Match</title><link href="linuwial.css" rel="stylesheet" type="text/css" title="Linuwial" /><link rel="stylesheet" type="text/css" href="quick-jump.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=PT+Sans:400,400i,700" /><script src="haddock-bundle.min.js" async="async" type="text/javascript"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { processClass: "mathjax", ignoreClass: ".*" } });</script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script></head><body><div id="package-header"><span class="caption">typedKanren-0.1.0.0</span><ul class="links" id="page-menu"><li><a href="src/Kanren.Match.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul></div><div id="content"><div id="module-header"><table class="info"><tr><th>Safe Haskell</th><td>Safe-Inferred</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">Kanren.Match</p></div><div id="table-of-contents"><div id="contents-list"><p class="caption" onclick="window.scrollTo(0,0)">Contents</p><ul><li><a href="#g:1">Non-exhaustive pattern matching</a></li><li><a href="#g:exhaustive">Exhaustive pattern matching </a></li></ul></div></div><div id="description"><p class="caption">Description</p><div class="doc"><p>The <code>matche</code> for Haskell. Comes in non-exhaustive and, most importantly,
+ exhaustive versions.</p></div></div><div id="synopsis"><details id="syn"><summary>Synopsis</summary><ul class="details-toggle" data-details-id="syn"><li class="src short"><a href="#v:on">on</a> :: (<a href="Kanren-Core.html#t:Logical" title="Kanren.Core">Logical</a> a, <a href="Kanren-Goal.html#t:Fresh" title="Kanren.Goal">Fresh</a> v) =&gt; <a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism-39-" title="Control.Lens.Type">Prism'</a> (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a) v -&gt; (v -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x) -&gt; (<a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x) -&gt; <a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x</li><li class="src short"><a href="#v:matche">matche</a> :: <a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x</li><li class="src short"><a href="#v:_Value">_Value</a> :: <a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism-39-" title="Control.Lens.Type">Prism'</a> (<a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a) (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a)</li><li class="src short"><a href="#v:enter-39-">enter'</a> :: (Matched m a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x) -&gt; <a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x</li><li class="src short"><a href="#v:on-39-">on'</a> :: (<a href="Kanren-Core.html#t:Logical" title="Kanren.Core">Logical</a> a, <a href="Kanren-Goal.html#t:Fresh" title="Kanren.Goal">Fresh</a> v) =&gt; <a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism" title="Control.Lens.Type">Prism</a> (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m' (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> Remaining v) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> Checked v) -&gt; (v -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x) -&gt; (Matched m' a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x) -&gt; Matched m a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x</li><li class="src short"><a href="#v:matche-39-">matche'</a> :: Exhausted m =&gt; Matched m a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x</li><li class="src short"><a href="#v:_Tagged">_Tagged</a> :: <a href="../lens-5.2.3/Control-Lens-Type.html#t:Iso" title="Control.Lens.Type">Iso</a> b b' (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> s b) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> s' b')</li><li class="src short"><a href="#v:_Value-39-">_Value'</a> :: <a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism" title="Control.Lens.Type">Prism</a> (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m (<a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m' (<a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m' (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a))</li></ul></details></div><div id="interface"><a href="#g:1" id="g:1"><h1>Non-exhaustive pattern matching</h1></a><div class="doc"><p>Pattern matching in this library syntactially looks similar to the one
+ from the <code>total</code> package and is based on <code><a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism" title="Control.Lens.Type">Prism</a></code>s, though the mechanics
+ differ. Let's take a look at an example.</p><pre>data Expr
+  = Variable String
+  | Abstraction String Expr
+  | Apply Expr Expr
+  deriving (Generic)
+makeLogic ''Expr
+makePrisms ''LogicExpr
+
+expro :: Term Expr -&gt; Goal ()
+expro = matche
+  &amp; on _LogicVariable (\_var -&gt; return ())
+  &amp; on _LogicAbstraction (\(_var, body) -&gt; expro body)</pre><p>After defining our data type, we derived its logic type using
+ <code><a href="TH.html#v:makeLogic" title="TH">makeLogic</a></code>, and then generated prisms for the logic type using
+ <code><a href="../lens-5.2.3/Control-Lens-TH.html#v:makePrisms" title="Control.Lens.TH">makePrisms</a></code> from the <code>lens</code> package. The prisms are
+ crucial to enable pattern matching.</p><p>Two functions are used for pattern matching: <code><a href="Kanren-Match.html#v:matche" title="Kanren.Match">matche</a></code> and <code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code>. They are
+ composed using <code><a href="../base-4.18.2.1/Data-Function.html#v:-38-" title="Data.Function">&amp;</a></code> so that the code looks similar to
+ the built-in <code>case</code> expression.</p><p>At the very top, we use <code><a href="Kanren-Match.html#v:matche" title="Kanren.Match">matche</a></code>. Then, for every case we want to consider,
+ we use <code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code> and provide a prism &#8212; the left-hand side of the arm &#8212; and a
+ function &#8212; the right-hand side of the arm. If the value matches the
+ pattern, the function is applied to the data stored inside the variant.</p><p>When pattern-matching on a term, every arm will be tried. Results from each
+ arm will be combined using <code><a href="Kanren-Goal.html#v:disj" title="Kanren.Goal">disj</a></code>unction. This is just like how <code>matche</code>
+ from <code>faster-minikanren</code> behaves.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>mapM_ print (take 3 (run expro))
+</code></strong>Value (LogicVariable (Var (VarId 1)))
+Value (LogicAbstraction (Var (VarId 1)) (Value (LogicVariable (..))))
+Value (LogicAbstraction (Var (VarId 1)) (Value (LogicAbstraction ...)))
+</pre><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>run (\() -&gt; expro (inject' (Variable &quot;foo&quot;)))
+</code></strong>[()]
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>run (\() -&gt; expro (inject' (Apply (Variable &quot;f&quot;) (Variable &quot;x&quot;))))
+</code></strong>[]
+</pre><p>(note that <code>expro</code> deliberately doesn't include a case for <code>Apply</code>.)</p><p>How does this actually work? Remember that <code><a href="../base-4.18.2.1/Data-Function.html#v:-38-" title="Data.Function">&amp;</a></code> just
+ swaps the function and its argument, so <code>expro</code> is equivalent to</p><pre>on _LogicAbstraction (\(_var, body) -&gt; expro body)
+   (on _LogicVariable (\_var -&gt; return ())
+       matche)</pre><p>One can now clearly see that <code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code> takes a third argument in which other
+ cases are considered. It takes a forth argument too &#8212; the value to match
+ on. When you provide that value, <code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code> will try to match it with the given
+ pattern, and apply the given function if possible. <code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code> will also apply
+ this value to the remaning cases and take a <code><a href="Kanren-Goal.html#v:disj" title="Kanren.Goal">disj</a></code>unction. The <code><a href="Kanren-Match.html#v:matche" title="Kanren.Match">matche</a></code>
+ at the end is just <code>const failo</code>.</p><p>Since <code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code> is expected to be used with <code><a href="../base-4.18.2.1/Data-Function.html#v:-38-" title="Data.Function">&amp;</a></code>, it will take
+ special care to test cases in the order they will appear in the source
+ code. This means that you can list cases in the natural order from
+ simple on the top to complex on the bottom and the code will work as
+ expected.</p><p><code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code> and <code><a href="Kanren-Match.html#v:matche" title="Kanren.Match">matche</a></code> together make for non-exhaustive pattern matching. As you
+ have already seen, <code>expro</code> in the above examples misses a branch for the
+ <code>Apply</code>. This is perfectly safe, since non-handled variants will just lead
+ to contradiction. However, it may be desirable to perform an exhaustive
+ pattern matching &#8212; see <a href="#g:exhaustive">the next section</a> for that.</p><p>Non-exhaustive pattern matching also lets you consider the same variant
+ twice or more. The results will be combined in the usual way.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:{
+</code></strong>  extract' &lt;$&gt; run (matche
+    &amp; on _LogicVariable (\x -&gt; x === inject' &quot;x&quot;)
+    &amp; on _LogicVariable (\x -&gt; x === inject' &quot;y&quot;))
+:}
+[Just (Variable &quot;x&quot;),Just (Variable &quot;y&quot;)]
+</pre><p>If a variant contains just a single field, it is possible to perform nested
+ pattern matching. All it takes is to compose two prisms with <code><a href="Kanren-Match.html#v:_Value" title="Kanren.Match">_Value</a></code> in
+ between:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:{
+</code></strong>  extract' &lt;$&gt; run (matche
+    &amp; on (_LogicLeft . _Value . _LogicVariable) (\x -&gt; x === inject' &quot;x&quot;)
+    &amp; on (_LogicRight . _Value . _LogicVariable) (\x -&gt; x === inject' &quot;y&quot;))
+:}
+[Just (Left (Variable &quot;x&quot;)),Just (Right (Variable &quot;y&quot;))]
+</pre><p>The <code><a href="Kanren-Match.html#v:_Value" title="Kanren.Match">_Value</a></code> here is just the glue between the focus of the left prism,
+ which is a <code><code><a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a></code> a</code>, and the source of the right prism, which is a
+ <code><code><a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a></code> a</code>.</p><p>Note that in the very first example, <code>expro</code> is a function with one
+ parameter, but its equation does not include it on the left side. That's
+ because the whole <code>matche &amp; ...</code> expression is a function, and this is nice
+ when you want to match on the last parameter in the relation. If this is
+ not applicable in your case, you might want to use the following syntax:</p><pre>x &amp; (matche
+  &amp; on ...)</pre><p>Finally, the <code><a href="LogicalBase.html">LogicalBase</a></code> module, which provides <code><a href="Kanren-Core.html#t:Logical" title="Kanren.Core">Logical</a></code> instances for
+ <code>base</code> types, also provides prisms for their logical representations for
+ the purposes of pattern matching.</p></div><div class="top"><p class="src"><a id="v:on" class="def">on</a> <a href="src/Kanren.Match.html#on" class="link">Source</a> <a href="#v:on" class="selflink">#</a></p><div class="subs arguments"><p class="caption">Arguments</p><table><tr><td class="src">:: (<a href="Kanren-Core.html#t:Logical" title="Kanren.Core">Logical</a> a, <a href="Kanren-Goal.html#t:Fresh" title="Kanren.Goal">Fresh</a> v)</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src">=&gt; <a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism-39-" title="Control.Lens.Type">Prism'</a> (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a) v</td><td class="doc"><p>The pattern</p></td></tr><tr><td class="src">-&gt; (v -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x)</td><td class="doc"><p>The handler</p></td></tr><tr><td class="src">-&gt; (<a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x)</td><td class="doc"><p>Remaining cases</p></td></tr><tr><td class="src">-&gt; <a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a</td><td class="doc"><p>Value being matched</p></td></tr><tr><td class="src">-&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x</td><td class="doc empty">&nbsp;</td></tr></table></div><div class="doc"><p>One case for non-exhaustive pattern matching.</p><p>Although we try to match on a <code><a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a></code>, the prism only need to operate on
+ a <code><a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a></code> type.</p><p>In case when the value being match is unknown yet, <code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code> must be able to
+ construct this value from the pattern &#8212; hence the <code><code><a href="Kanren-Goal.html#t:Fresh" title="Kanren.Goal">Fresh</a></code> v</code> constraint. It
+ should just work though since <code><a href="Kanren-Goal.html#t:Fresh" title="Kanren.Goal">Fresh</a></code> has instances for tuples, and prisms'
+ foci are tuples too.</p></div></div><div class="top"><p class="src"><a id="v:matche" class="def">matche</a> :: <a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x <a href="src/Kanren.Match.html#matche" class="link">Source</a> <a href="#v:matche" class="selflink">#</a></p><div class="doc"><p>Finalize non-exhaustive pattern matching.</p></div></div><div class="top"><p class="src"><a id="v:_Value" class="def">_Value</a> :: <a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism-39-" title="Control.Lens.Type">Prism'</a> (<a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a) (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a) <a href="src/Kanren.Match.html#_Value" class="link">Source</a> <a href="#v:_Value" class="selflink">#</a></p><div class="doc"><p>Focus on the logical value inside a term.</p><p>This prism aids nested pattern matching. You might expect that, since
+ regular prisms can be easily composed, say
+ <code><code><a href="../lens-5.2.3/Control-Lens-Prism.html#v:_Just" title="Control.Lens.Prism">_Just</a></code> . <code><a href="../lens-5.2.3/Control-Lens-Prism.html#v:_Left" title="Control.Lens.Prism">_Left</a></code></code>, then
+ <code><code><a href="LogicalBase.html#v:_LogicJust" title="LogicalBase">_LogicJust</a></code> . <code><a href="Logicalbase.html#v:_LogicLeft" title="Logicalbase">_LogicLeft</a></code></code> should also work.
+ However, this is not the case since the types are slightly different:</p><pre>_LogicJust :: Prism' (Logic (Maybe (Either a b))) (Term (Either a b))
+_LogicLeft :: Prism'                             (Logic (Either a b)) (Term a)</pre><p>Hence, we need one more prism between <code><a href="LogicalBase.html#v:_LogicJust" title="LogicalBase">_LogicJust</a></code> and
+ <code><a href="LogicalBase.html#v:_LogicLeft" title="LogicalBase">_LogicLeft</a></code> for the types to match. This prism is <code><a href="Kanren-Match.html#v:_Value" title="Kanren.Match">_Value</a></code>.</p></div></div><a href="#g:exhaustive" id="g:exhaustive"><h1>Exhaustive pattern matching </h1></a><div class="doc"><p>While lispers may be fine with pattern matching as described in the
+ previous section, we haskellers love exhaustive pattern matching, and it
+ would be sad if we'd have to give up on it when writing relational programs
+ in Haskell. So this module also provides a variation on pattern matching
+ with compile-time exhaustiveness check. It looks quite similar to the
+ non-exhaustive version:</p><pre>expro' :: Term Expr -&gt; Goal ()
+expro' = matche'
+  &amp; on' _LogicVariable' (\_var -&gt; return ())
+  &amp; on' _LogicAbstraction' (\(_var, body) -&gt; expro body)
+  &amp; on' _LogicApply' (\(function, argument) -&gt; do
+      expro function
+      expro argument)
+  &amp; enter'</pre><p><code><a href="Kanren-Match.html#v:matche" title="Kanren.Match">matche</a></code> becomes <code><a href="Kanren-Match.html#v:matche-39-" title="Kanren.Match">matche'</a></code>, <code><a href="Kanren-Match.html#v:on" title="Kanren.Match">on</a></code> becomes <code><a href="Kanren-Match.html#v:on-39-" title="Kanren.Match">on'</a></code>, and <code><a href="Kanren-Match.html#v:enter-39-" title="Kanren.Match">enter'</a></code> comes on the
+ scene. We also need to use a bit different prisms, which get an apostrophe
+ at the end as well. For now we'll just assume that we already have them:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>mapM_ print (take 3 (run expro'))
+</code></strong>Value (LogicVariable ...)
+Value (LogicApply ...)
+Value (LogicAbstraction ...)
+</pre><p>This works, but we are more interested in the case when we forgot a case
+ and would like to get a compile-time error.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>:{
+</code></strong>  run (matche'
+    &amp; on' _LogicVariable' (\_var -&gt; return ())
+    &amp; on' _LogicAbstraction' (\(_var, body) -&gt; expro body)
+    &amp; enter')
+:}
+&lt;interactive&gt;:2:6: error: [GHC-39999]
+ &#8226; Ambiguous type variable &#8216;ap0&#8217; arising from a use of &#8216;matche'&#8217;
+   prevents the constraint &#8216;(Exhausted ap0)&#8217; from being solved.
+</pre><p>Indeed, our program fails to compile with an error so easy to understand
+ we'll spend the next few paragraphs explaining it.</p><p>The magic that allows us to perform the exhaustiveness check is in the new
+ prisms. In general, their type signature is</p><pre>Prism (Tagged (&#8230;, c , &#8230;) (Logic a))
+      (Tagged (&#8230;, c', &#8230;) (Logic a))
+      (Tagged c  b)
+      (Tagged c' b)</pre><p>The source type is now <code><a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a></code> with a tuple that contains a variable for
+ each variant of the type. The focus is also <code><a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a></code> with the variable for
+ the variant that this prism focuses on. Take a look at <code>_LogicVariable'</code>:</p><pre>_LogicVariable' :: Prism
+  (Tagged (v , ab, ap) LogicExpr)
+  (Tagged (v', ab, ap) LogicExpr)
+  (Tagged v  (Term String))
+  (Tagged v' (Term String))
+_LogicVariable' = from _Tagged . _LogicVariable . _Tagged</pre><p>These new prisms are easily implemented using regular prisms and the
+ <code><a href="Kanren-Match.html#v:_Tagged" title="Kanren.Match">_Tagged</a></code> isomorphism (provided by this module). It should be possible to
+ generate them automatically, but this is not implemented yet.</p><p>In its type signature, <code><a href="Kanren-Match.html#v:on-39-" title="Kanren.Match">on'</a></code> instantiates the type variable <code>c</code> to
+ <code>Remaining</code> and <code>c'</code> to <code>Checked</code>. The <code>Checked</code> tag will be passed on to
+ the remaining cases (and @Remaining will propagate back to previous cases).
+ Therefore, the type checker will infer the following tags for each case
+ (remember that <code><a href="../base-4.18.2.1/Data-Function.html#v:-38-" title="Data.Function">&amp;</a></code> is reverse application, so the
+ exhaustiveness check happens bottom-up):</p><pre>matche'
+  &amp; on' _LogicVariable' &#8230;    -- (  Checked,   Checked, Checked)
+  &amp; on' _LogicAbstraction' &#8230; -- (Remaining,   Checked, Checked)
+  &amp; on' _LogicApply' &#8230;       -- (Remaining, Remaining, Checked)
+  &amp; enter'</pre><p>Now, the job of <code><a href="Kanren-Match.html#v:matche-39-" title="Kanren.Match">matche'</a></code> now is to check that the tags it receives are all
+ <code>Checked</code>. This is done using the private <code>Exhausted</code> type class. It has
+ instances for <code>Checked</code> and tuples consisting of <code>Exhausted</code> types.</p><p>While these tags are nice, they need to come from somewhere, but <code><a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a></code>s
+ don't have them. To solve this problem, we introduce <code><a href="Kanren-Match.html#v:enter-39-" title="Kanren.Match">enter'</a></code> which
+ attaches tags to the term being matched. The <code><a href="Kanren-Match.html#v:enter-39-" title="Kanren.Match">enter'</a></code> has to be put below
+ all cases.</p><p>The question now is, what happens when we miss a case? For the forgotten
+ variant, the type checker will not be able to infer the concrete tag.
+ When the tags arrive at <code><a href="Kanren-Match.html#v:matche-39-" title="Kanren.Match">matche'</a></code>, the type checker will check for the
+ <code>Exhausted</code> constraint and fail, because it does not know if this
+ constraint is satisfied for the unsolved type variable. Hence the compiler
+ error we saw previously.</p><pre>matche'
+  &amp; on' _LogicVariable' &#8230;    -- (  Checked,   Checked, ap)
+  &amp; on' _LogicAbstraction' &#8230; -- (Remaining,   Checked, ap)
+  &amp; enter'                   -- (Remaining, Remaining, ap)</pre><p>The exhaustive version of pattern matching also support nested patterns.
+ Just like with non-exhaustive pattern matching, two prisms need to composed
+ with <code><a href="Kanren-Match.html#v:_Value-39-" title="Kanren.Match">_Value'</a></code> in between.</p><pre>matche'
+  &amp; on' _LogicLeft' (\x -&gt; x === Value False)
+  &amp; on' _LogicRight' . _Value' . _LogicJust' (\x -&gt; x === Value 42)
+  &amp; on' _LogicRight' . _Value' . _LogicNothing' (\() -&gt; failo)
+  &amp; enter'</pre><p>In this example, the tags will have the form <code>(left, (nothing, just))</code>. You
+ don't need to use nested patterns, but if you do, you have to enumerate all
+ possible subcases as well. This works nicely with recursive types too.</p><p>Unlike non-exhaustive pattern matching, the exhaustive version explicitly
+ disallows visiting the same variant twice. Although checking an already
+ checked case wouldn't hurt, it doesn't play nicely with nested patterns.</p><p>The <code><a href="LogicalBase.html">LogicalBase</a></code> provides prisms for exhaustive pattern matching too.</p></div><div class="top"><p class="src"><a id="v:enter-39-" class="def">enter'</a> :: (Matched m a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x) -&gt; <a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x <a href="src/Kanren.Match.html#enter%27" class="link">Source</a> <a href="#v:enter-39-" class="selflink">#</a></p><div class="doc"><p>Begin exhaustive pattern matching by attaching initial tags to the term.
+ Do keep in mind that these tags do not exist at runtime.</p></div></div><div class="top"><p class="src"><a id="v:on-39-" class="def">on'</a> <a href="src/Kanren.Match.html#on%27" class="link">Source</a> <a href="#v:on-39-" class="selflink">#</a></p><div class="subs arguments"><p class="caption">Arguments</p><table><tr><td class="src">:: (<a href="Kanren-Core.html#t:Logical" title="Kanren.Core">Logical</a> a, <a href="Kanren-Goal.html#t:Fresh" title="Kanren.Goal">Fresh</a> v)</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src">=&gt; <a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism" title="Control.Lens.Type">Prism</a> (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m' (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> Remaining v) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> Checked v)</td><td class="doc"><p>The pattern, which also participates in the exhaustiveness check</p></td></tr><tr><td class="src">-&gt; (v -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x)</td><td class="doc"><p>The handler</p></td></tr><tr><td class="src">-&gt; (Matched m' a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x)</td><td class="doc"><p>Remaining cases</p></td></tr><tr><td class="src">-&gt; Matched m a</td><td class="doc"><p>Value being matched</p></td></tr><tr><td class="src">-&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x</td><td class="doc empty">&nbsp;</td></tr></table></div><div class="doc"><p>One case for exhaustive pattern matching.</p><p>Exhaustive pattern matching requires special prisms which know of all
+ possible variants and can mark a variant as checked. See the guide above for
+ details.</p><p><code>Remaining</code> and <code>Checked</code> are private types on purpose.</p></div></div><div class="top"><p class="src"><a id="v:matche-39-" class="def">matche'</a> :: Exhausted m =&gt; Matched m a -&gt; <a href="Kanren-Goal.html#t:Goal" title="Kanren.Goal">Goal</a> x <a href="src/Kanren.Match.html#matche%27" class="link">Source</a> <a href="#v:matche-39-" class="selflink">#</a></p><div class="doc"><p>Finalize exhaustive pattern matching.</p><p>The <code>Exhausted m</code> constraint checks that <code>m</code> is composed only of <code>Checked</code>
+ tags.</p><pre>instance Exhaustive Checked
+instance (Exhaustive a, Exhaustive b) =&gt; Exhaustive (a, b)
+...</pre></div></div><div class="top"><p class="src"><a id="v:_Tagged" class="def">_Tagged</a> :: <a href="../lens-5.2.3/Control-Lens-Type.html#t:Iso" title="Control.Lens.Type">Iso</a> b b' (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> s b) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> s' b') <a href="src/Kanren.Match.html#_Tagged" class="link">Source</a> <a href="#v:_Tagged" class="selflink">#</a></p><div class="doc"><p>The isomorphism for <code><a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a></code>, useful to implement prisms for exhaustive
+ pattern matching.</p><pre>_LogicJust' :: Prism
+  (Tagged (nothing, just ) (Maybe a ))
+  (Tagged (nothing, just') (Maybe a'))
+  (Tagged just  (Term a ))
+  (Tagged just' (Term a'))
+_LogicJust' = from _Tagged . _LogicJust . _Tagged</pre></div></div><div class="top"><p class="src"><a id="v:_Value-39-" class="def">_Value'</a> :: <a href="../lens-5.2.3/Control-Lens-Type.html#t:Prism" title="Control.Lens.Type">Prism</a> (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m (<a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m' (<a href="Kanren-Core.html#t:Term" title="Kanren.Core">Term</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a)) (<a href="../tagged-0.8.8/Data-Tagged.html#t:Tagged" title="Data.Tagged">Tagged</a> m' (<a href="Kanren-Core.html#t:Logic" title="Kanren.Core">Logic</a> a)) <a href="src/Kanren.Match.html#_Value%27" class="link">Source</a> <a href="#v:_Value-39-" class="selflink">#</a></p><div class="doc"><p>Focus on the logical value inside a term.</p><p>This prism serves the same purpose as <code><a href="Kanren-Match.html#v:_Value" title="Kanren.Match">_Value</a></code>, but is adapted for exhaustive
+ pattern matching.</p></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.29.2</p></div></body></html>
