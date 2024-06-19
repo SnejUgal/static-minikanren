@@ -1,4 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,11 +15,11 @@ import Kanren.Core
 import Kanren.Goal
 import Kanren.LogicalBase ()
 import Kanren.Match
-import Kanren.TH (makeLogic)
+import Kanren.TH
 
 data Tree a = Empty | Node a (Tree a) (Tree a)
   deriving (Show, Generic)
-makeLogic ''Tree
+makeLogical ''Tree
 makePrisms ''LogicTree
 
 treeo :: Term (Tree Int) -> Goal ()

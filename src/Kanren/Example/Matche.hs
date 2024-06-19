@@ -1,4 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -55,7 +54,7 @@ data Nat
   | S Nat
   deriving (Show, Generic)
 
-makeLogic ''Nat
+makeLogical ''Nat
 makePrisms ''LogicNat
 
 _Z' :: Prism (Tagged (z, s) LogicNat) (Tagged (z', s) LogicNat) (Tagged z ()) (Tagged z' ())

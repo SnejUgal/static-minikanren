@@ -165,22 +165,24 @@ module Kanren.Match (
   -- we'll spend the next few paragraphs explaining it.
   --
   -- The magic that allows us to perform the exhaustiveness check is in the new
-  -- prisms. In general, their type signature is
+  -- prisms. They have the following type:
   --
-  -- > Prism (Tagged (…, c , …) (Logic a))
-  -- >       (Tagged (…, c', …) (Logic a))
-  -- >       (Tagged c  b)
-  -- >       (Tagged c' b)
+  -- > ExhaustivePrism (Logic s) (…, c, …) (…, c', …) a c c'
+  --
+  -- …which is actually just an alias for the more verbose type
+  --
+  -- > Prism (Tagged (…, c , …) (Logic s))
+  -- >       (Tagged (…, c', …) (Logic s))
+  -- >       (Tagged c  a)
+  -- >       (Tagged c' a)
   --
   -- The source type is now 'Tagged' with a tuple that contains a variable for
   -- each variant of the type. The focus is also 'Tagged' with the variable for
   -- the variant that this prism focuses on. Take a look at @_LogicVariable'@:
   --
-  -- > _LogicVariable' :: Prism
-  -- >   (Tagged (v , ab, ap) LogicExpr)
-  -- >   (Tagged (v', ab, ap) LogicExpr)
-  -- >   (Tagged v  (Term String))
-  -- >   (Tagged v' (Term String))
+  -- > _LogicVariable' :: ExhaustivePrism
+  --     LogicExpr (v, ab, ap) (v', ab, ap)
+  --     (Term String) v v'
   -- > _LogicVariable' = from _Tagged . _LogicVariable . _Tagged
   --
   -- These new prisms are easily implemented using regular prisms and the
@@ -243,16 +245,25 @@ module Kanren.Match (
   enter',
   on',
   matche',
+  ExhaustivePrism,
   _Tagged,
   _Value',
 ) where
 
-import           Control.Lens (Iso, Prism, Prism', from, iso, prism', review,
-                               reviewing)
-import           Data.Tagged  (Tagged (Tagged, unTagged))
+import Control.Lens (
+  Iso,
+  Prism,
+  Prism',
+  from,
+  iso,
+  prism',
+  review,
+  reviewing,
+ )
+import Data.Tagged (Tagged (Tagged, unTagged))
 
-import           Kanren.Core
-import           Kanren.Goal
+import Kanren.Core
+import Kanren.Goal
 
 -- | One case for non-exhaustive pattern matching.
 --
@@ -314,6 +325,13 @@ instance
   (Exhausted a, Exhausted b, Exhausted c, Exhausted d)
   => Exhausted (a, b, c, d)
 
+-- | A prism which is suitable for exhaustive pattern matching.
+--
+-- Although the type definition might allow changing the type of the focus, this
+-- is not neccesary for exhaustive pattern matching and so not covered here.
+type ExhaustivePrism s m m' a t t' =
+  Prism (Tagged m s) (Tagged m' s) (Tagged t a) (Tagged t' a)
+
 -- | Begin exhaustive pattern matching by attaching initial tags to the term.
 -- Do keep in mind that these tags do not exist at runtime.
 enter' :: (Matched m a -> Goal x) -> Term a -> Goal x
@@ -328,11 +346,7 @@ enter' f = delay . f . Tagged
 -- @Remaining@ and @Checked@ are private types on purpose.
 on'
   :: (Logical a, Fresh v)
-  => Prism
-      (Tagged m (Logic a))
-      (Tagged m' (Logic a))
-      (Tagged Remaining v)
-      (Tagged Checked v)
+  => ExhaustivePrism (Logic a) m m' v Remaining Checked
   -- ^ The pattern, which also participates in the exhaustiveness check
   -> (v -> Goal x)
   -- ^ The handler
@@ -374,10 +388,5 @@ _Tagged = iso Tagged unTagged
 --
 -- This prism serves the same purpose as '_Value', but is adapted for exhaustive
 -- pattern matching.
-_Value'
-  :: Prism
-      (Tagged m (Term a))
-      (Tagged m' (Term a))
-      (Tagged m (Logic a))
-      (Tagged m' (Logic a))
+_Value' :: ExhaustivePrism (Term a) m m' (Logic a) m m'
 _Value' = from _Tagged . _Value . _Tagged

@@ -1,4 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLists #-}
@@ -16,9 +15,7 @@ module Kanren.Data.Scheme (
   evalo,
 ) where
 
-import Control.Lens (Prism, from)
 import Control.Lens.TH (makePrisms)
-import Data.Tagged (Tagged)
 import GHC.Exts (IsList, IsString (..))
 import GHC.Generics (Generic)
 import GHC.IsList (IsList (..))
@@ -27,7 +24,6 @@ import Control.DeepSeq
 import Kanren.Core
 import Kanren.Goal
 import Kanren.LogicalBase
-import Kanren.Match
 import Kanren.TH
 
 type Symbol = Atomic String
@@ -68,10 +64,12 @@ instance IsList SExpr where
 instance IsString SExpr where
   fromString = SSymbol . Atomic
 
-makeLogic ''SExpr
-makeLogic ''Value
+makeLogical ''SExpr
+makeLogical ''Value
 makePrisms ''LogicSExpr
 makePrisms ''LogicValue
+makeExhaustivePrisms ''LogicSExpr
+makeExhaustivePrisms ''LogicValue
 
 instance Normalizable SExpr where
   normalize f (LogicSSymbol x) = LogicSSymbol <$> normalize' f x
@@ -79,30 +77,6 @@ instance Normalizable SExpr where
   normalize f (LogicSCons car cdr) = LogicSCons <$> normalize' f car <*> normalize' f cdr
 
 deriving instance NFData LogicSExpr
-
-_LogicSSymbol'
-  :: Prism
-      (Tagged (s, n, c) LogicSExpr)
-      (Tagged (s', n, c) LogicSExpr)
-      (Tagged s (Term Symbol))
-      (Tagged s' (Term Symbol))
-_LogicSSymbol' = from _Tagged . _LogicSSymbol . _Tagged
-
-_LogicSNil'
-  :: Prism
-      (Tagged (s, n, c) LogicSExpr)
-      (Tagged (s, n', c) LogicSExpr)
-      (Tagged n ())
-      (Tagged n' ())
-_LogicSNil' = from _Tagged . _LogicSNil . _Tagged
-
-_LogicSCons'
-  :: Prism
-      (Tagged (s, n, c) LogicSExpr)
-      (Tagged (s, n, c') LogicSExpr)
-      (Tagged c (Term SExpr, Term SExpr))
-      (Tagged c' (Term SExpr, Term SExpr))
-_LogicSCons' = from _Tagged . _LogicSCons . _Tagged
 
 instance Show LogicSExpr where
   show (LogicSSymbol (Value (Atomic symbol))) = symbol

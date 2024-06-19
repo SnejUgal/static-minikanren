@@ -1,4 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -34,37 +33,21 @@ module Kanren.Data.Binary (
 ) where
 
 import Control.DeepSeq (NFData)
-import Control.Lens (Prism, from)
 import Control.Lens.TH (makePrisms)
 import Data.Bifunctor (bimap)
 import Data.Function ((&))
-import Data.Tagged (Tagged)
 import GHC.Generics (Generic)
 
 import Kanren.Core
 import Kanren.Goal
 import Kanren.LogicalBase
 import Kanren.Match
+import Kanren.TH
 
 data Bit = O | I deriving (Eq, Show, Generic, NFData)
 instance Logical Bit
 makePrisms ''Bit
-
-_O'
-  :: Prism
-      (Tagged (o, i) Bit)
-      (Tagged (o', i) Bit)
-      (Tagged o ())
-      (Tagged o' ())
-_O' = from _Tagged . _O . _Tagged
-
-_I'
-  :: Prism
-      (Tagged (o, i) Bit)
-      (Tagged (o, i') Bit)
-      (Tagged i ())
-      (Tagged i' ())
-_I' = from _Tagged . _I . _Tagged
+makeExhaustivePrisms ''Bit
 
 type Binary = [Bit]
 
